@@ -19,6 +19,9 @@ interface ChatContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   filteredChats: Chat[];
+  dbError: string | null;
+  setDbError: (error: string | null) => void;
+  refreshChats: () => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -31,6 +34,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [dbError, setDbError] = useState<string | null>(null);
   const typingTimeoutRef = useRef<Record<string, number>>({});
   const activeChatIdRef = useRef<string | null>(null);
   activeChatIdRef.current = activeChatId;
@@ -47,7 +51,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('chat_id')
         .eq('user_id', user.id);
 
-      if (pErr || !participations || participations.length === 0) {
+      if (pErr) {
+        console.error('Error fetching participations:', pErr);
+        if (pErr.message?.toLowerCase().includes('recursion') || pErr.message?.toLowerCase().includes('policy')) {
+          setDbError('recursive_policy');
+        } else {
+          setDbError(pErr.message || 'database_error');
+        }
+        return;
+      }
+
+      if (!participations || participations.length === 0) {
+        setDbError(null);
         return;
       }
 
@@ -58,9 +73,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .in('id', chatIds)
         .order('updated_at', { ascending: false });
 
-      if (cErr || !chatsData || chatsData.length === 0) {
+      if (cErr) {
+        console.error('Error fetching chats:', cErr);
+        if (cErr.message?.toLowerCase().includes('recursion') || cErr.message?.toLowerCase().includes('policy')) {
+          setDbError('recursive_policy');
+        } else {
+          setDbError(cErr.message || 'database_error');
+        }
         return;
       }
+
+      if (!chatsData || chatsData.length === 0) {
+        setDbError(null);
+        return;
+      }
+
+      setDbError(null);
 
       // Populate participant details and last message for each chat
       const detailedChats: Chat[] = await Promise.all(
@@ -209,16 +237,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('chat_id', activeChatId)
           .order('created_at', { ascending: true });
 
-        if (!isCancelled) {
-          if (!error && data) {
-            setMessagesByChat(prev => ({
-              ...prev,
-              [activeChatId]: data as Message[],
-            }));
-            markMessagesAsRead(activeChatId);
+        if (error) {
+          console.error('Error fetching messages:', error);
+          if (error.message?.toLowerCase().includes('recursion') || error.message?.toLowerCase().includes('policy')) {
+            setDbError('recursive_policy');
+          } else {
+            setDbError(error.message || 'database_error');
           }
-          setIsLoadingMessages(false);
+        } else if (!isCancelled && data) {
+          setDbError(null);
+          setMessagesByChat(prev => ({
+            ...prev,
+            [activeChatId]: data as Message[],
+          }));
+          markMessagesAsRead(activeChatId);
         }
+        setIsLoadingMessages(false);
       } catch (err) {
         if (!isCancelled) {
           console.error('Error fetching messages:', err);
@@ -374,16 +408,33 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Chat row missing in DB, insert chat and retry message
           await supabase.from('chats').insert({ id: activeChatId });
           await supabase.from('chat_participants').insert({ chat_id: activeChatId, user_id: user.id });
-          await supabase.from('messages').insert({
+          const { error: retryErr } = await supabase.from('messages').insert({
             id: newMsg.id,
             chat_id: newMsg.chat_id,
             sender_id: newMsg.sender_id,
             content: newMsg.content,
             status: 'sent',
           });
+          if (retryErr) {
+            console.error('Error inserting message on retry:', retryErr);
+            if (retryErr.message?.toLowerCase().includes('recursion') || retryErr.message?.toLowerCase().includes('policy')) {
+              setDbError('recursive_policy');
+            } else {
+              setDbError(retryErr.message || 'database_error');
+            }
+          } else {
+            setDbError(null);
+          }
         } else {
           console.error('Error inserting message into Supabase:', msgErr);
+          if (msgErr.message?.toLowerCase().includes('recursion') || msgErr.message?.toLowerCase().includes('policy')) {
+            setDbError('recursive_policy');
+          } else {
+            setDbError(msgErr.message || 'database_error');
+          }
         }
+      } else {
+        setDbError(null);
       }
 
       await supabase
@@ -613,6 +664,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         searchQuery,
         setSearchQuery,
         filteredChats,
+        dbError,
+        setDbError,
+        refreshChats: loadChats,
       }}
     >
       {children}

@@ -12,6 +12,7 @@ import { SqlSchemaPanel } from './components/modals/SqlSchemaPanel';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { IncomingCallModal } from './components/calls/IncomingCallModal';
 import { ActiveCallOverlay } from './components/calls/ActiveCallOverlay';
+import { DatabaseErrorModal } from './components/modals/DatabaseErrorModal';
 
 const MainAppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -97,6 +98,7 @@ const MainAppContent: React.FC = () => {
       {/* 3. Overlays: Incoming Call Toast & Fullscreen WebRTC Call Stage */}
       <IncomingCallModal />
       <ActiveCallOverlay />
+      <DatabaseErrorModal />
     </div>
   );
 };

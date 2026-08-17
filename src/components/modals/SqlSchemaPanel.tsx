@@ -99,7 +99,7 @@ CREATE POLICY "Ver mis chats" ON public.chats FOR SELECT TO authenticated USING 
 CREATE POLICY "Crear chats" ON public.chats FOR INSERT TO authenticated WITH CHECK (true);
 
 CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (
-  EXISTS (SELECT 1 FROM public.chat_participants AS cp WHERE cp.chat_id = chat_participants.chat_id AND cp.user_id = auth.uid())
+  true
 );
 CREATE POLICY "Unirse a chats" ON public.chat_participants FOR INSERT TO authenticated WITH CHECK (true);
 

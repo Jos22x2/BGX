@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
-import { Search, Plus, Check, CheckCheck, Circle, MessageSquareDashed, X, UserPlus } from 'lucide-react';
+import { Search, Plus, Check, CheckCheck, Circle, MessageSquareDashed, X, UserPlus, AlertTriangle, Copy, CheckCircle } from 'lucide-react';
 import { NewChatModal } from './NewChatModal';
 
 export const ChatListPanel: React.FC = () => {
-  const { filteredChats, chats, activeChatId, setActiveChatId, searchQuery, setSearchQuery, typingUsers, startDirectChat } = useChat();
+  const { filteredChats, chats, activeChatId, setActiveChatId, searchQuery, setSearchQuery, typingUsers, startDirectChat, dbError, setDbError } = useChat();
   const { user, availableProfiles } = useAuth();
   const [filterTab, setFilterTab] = useState<'all' | 'unread'>('all');
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   // Unread chats count
   const unreadChatsCount = chats.filter(c => (c.unread_count || 0) > 0).length;
@@ -158,6 +160,61 @@ export const ChatListPanel: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* RLS Policy Warning Banner */}
+      {dbError && (
+        <div className="mx-3 my-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-900 select-text">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold">Error de Base de Datos (RLS)</p>
+              <p className="text-[11px] text-red-700 mt-0.5">
+                {dbError === 'recursive_policy' 
+                  ? 'Se detectó una recursión infinita en la política RLS de "chat_participants". Esto causa que Supabase devuelva errores 500 y bloquee la mensajería.'
+                  : `Error de base de datos: ${dbError}`}
+              </p>
+              
+              <div className="mt-2 flex flex-col gap-1 bg-white p-2 rounded-lg border border-red-100 font-mono text-[10px] text-slate-800 break-all select-all">
+                <p className="font-semibold text-slate-500 select-none">CÓDIGO CORRECTOR SQL:</p>
+                <span>DROP POLICY IF EXISTS "Ver participantes de mis chats" ON public.chat_participants;</span>
+                <span className="mt-0.5">CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);</span>
+              </div>
+
+              <div className="mt-2.5 flex items-center gap-2 select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sql = 'DROP POLICY IF EXISTS "Ver participantes de mis chats" ON public.chat_participants;\nCREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);';
+                    navigator.clipboard.writeText(sql);
+                    setCopiedSql(true);
+                    setTimeout(() => setCopiedSql(false), 2500);
+                  }}
+                  className="px-2.5 py-1 bg-red-600 text-white rounded font-semibold text-[10px] hover:bg-red-700 transition flex items-center gap-1 cursor-pointer"
+                >
+                  {copiedSql ? (
+                    <>
+                      <CheckCircle className="w-3 h-3" />
+                      <span>¡Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Copiar SQL de Corrección</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDbError(null)}
+                  className="px-2 py-1 bg-transparent text-slate-500 hover:text-slate-700 font-semibold text-[10px] transition cursor-pointer"
+                >
+                  Ocultar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Chat List Items & Search Results */}
       <div className="flex-1 native-scroll divide-y divide-[#e9edef]/80 overscroll-contain">
