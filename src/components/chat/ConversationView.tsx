@@ -152,6 +152,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [showContactSelector, setShowContactSelector] = useState(false);
   const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<number | null>(null);
@@ -160,6 +161,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
   // Custom media/asset refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -372,7 +374,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
   };
 
   // File Inputs Handle
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mediaType: 'image' | 'document') => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mediaType: 'image' | 'document' | 'audio') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -383,17 +385,125 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
 
       const sizeFormatted = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
 
-      const payload = {
-        type: mediaType,
-        url: base64Url,
-        name: file.name,
-        size: sizeFormatted,
-      };
+      if (mediaType === 'audio') {
+        const audio = new Audio();
+        audio.src = base64Url;
+        audio.onloadedmetadata = async () => {
+          const sec = Math.round(audio.duration) || 5;
+          const minutes = Math.floor(sec / 60);
+          const seconds = sec % 60;
+          const durationFormatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
-      await sendMessage(JSON.stringify(payload));
-      setShowAttachMenu(false);
+          const payload = {
+            type: 'audio',
+            url: base64Url,
+            name: file.name,
+            size: sizeFormatted,
+            duration: durationFormatted,
+          };
+          await sendMessage(JSON.stringify(payload));
+          setShowAttachMenu(false);
+        };
+        audio.onerror = async () => {
+          const payload = {
+            type: 'audio',
+            url: base64Url,
+            name: file.name,
+            size: sizeFormatted,
+            duration: '0:05',
+          };
+          await sendMessage(JSON.stringify(payload));
+          setShowAttachMenu(false);
+        };
+      } else {
+        const payload = {
+          type: mediaType,
+          url: base64Url,
+          name: file.name,
+          size: sizeFormatted,
+        };
+        await sendMessage(JSON.stringify(payload));
+        setShowAttachMenu(false);
+      }
     };
     reader.readAsDataURL(file);
+  };
+
+  // Drag & Drop Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      let mediaType: 'image' | 'document' | 'audio' = 'document';
+
+      if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+        mediaType = 'image';
+      } else if (file.type.startsWith('audio/')) {
+        mediaType = 'audio';
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Url = event.target?.result as string;
+        if (!base64Url) return;
+
+        const sizeFormatted = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+
+        if (mediaType === 'audio') {
+          const audio = new Audio();
+          audio.src = base64Url;
+          audio.onloadedmetadata = async () => {
+            const sec = Math.round(audio.duration) || 5;
+            const minutes = Math.floor(sec / 60);
+            const seconds = sec % 60;
+            const durationFormatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            const payload = {
+              type: 'audio',
+              url: base64Url,
+              name: file.name,
+              size: sizeFormatted,
+              duration: durationFormatted,
+            };
+            await sendMessage(JSON.stringify(payload));
+          };
+          audio.onerror = async () => {
+            const payload = {
+              type: 'audio',
+              url: base64Url,
+              name: file.name,
+              size: sizeFormatted,
+              duration: '0:05',
+            };
+            await sendMessage(JSON.stringify(payload));
+          };
+        } else {
+          const payload = {
+            type: mediaType,
+            url: base64Url,
+            name: file.name,
+            size: sizeFormatted,
+          };
+          await sendMessage(JSON.stringify(payload));
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // Send Contact
@@ -729,7 +839,23 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
       id="conversation-panel"
       aria-label="Conversación activa"
       className="flex-1 flex flex-col h-full overflow-hidden relative w-full"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
+      {/* Visual drag over overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 bg-[#00a884]/15 backdrop-blur-xs border-4 border-dashed border-[#00a884] rounded-2xl m-3 z-50 flex flex-col items-center justify-center gap-4 text-[#00a884] pointer-events-none animate-in fade-in duration-150">
+          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-lg">
+            <Paperclip className="w-8 h-8 animate-bounce" />
+          </div>
+          <div className="text-center bg-white/95 px-6 py-4 rounded-2xl shadow-xl border border-emerald-100 max-w-sm">
+            <h4 className="text-lg font-bold text-[#111b21] mb-1">Suelta tus archivos aquí</h4>
+            <p className="text-xs text-[#667781] leading-relaxed">Puedes arrastrar fotos, vídeos, audios o documentos para enviarlos al instante.</p>
+          </div>
+        </div>
+      )}
+
       {/* Header (WhatsApp style) */}
       <header className="px-3 sm:px-4 py-2.5 bg-[#f0f2f5] border-b border-[#e9edef] flex items-center justify-between z-20 flex-shrink-0 select-none">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -888,6 +1014,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
         style={{ display: 'none' }}
         onChange={(e) => handleFileChange(e, 'image')}
       />
+      <input
+        type="file"
+        ref={audioInputRef}
+        accept="audio/*"
+        style={{ display: 'none' }}
+        onChange={(e) => handleFileChange(e, 'audio')}
+      />
 
       {/* Floating Attach Menu (WhatsApp Web Style) */}
       {showAttachMenu && (
@@ -932,6 +1065,21 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
               <FileText className="w-4 h-4" />
             </div>
             <span>Documento</span>
+          </button>
+
+          {/* Subir Audio */}
+          <button
+            type="button"
+            onClick={() => {
+              audioInputRef.current?.click();
+              setShowAttachMenu(false);
+            }}
+            className="flex items-center gap-3 p-2 hover:bg-[#f0f2f5] rounded-xl transition text-left cursor-pointer text-sm font-semibold text-[#111b21] group w-44"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#1ebea5] text-white flex items-center justify-center group-hover:scale-110 transition shadow-xs">
+              <Headphones className="w-4 h-4" />
+            </div>
+            <span>Subir Audio</span>
           </button>
 
           {/* Grabador de Voz */}

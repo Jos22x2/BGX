@@ -39,11 +39,6 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
       icon: Users,
     },
     {
-      id: 'schema' as MainNavView,
-      label: 'SQL',
-      icon: Database,
-    },
-    {
       id: 'settings' as MainNavView,
       label: 'Ajustes',
       icon: Settings,
