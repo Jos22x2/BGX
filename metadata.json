@@ -1,0 +1,11 @@
+{
+  "name": "BGX",
+  "description": "Aplicación web de mensajería instantánea y llamadas de voz y video en tiempo real construida con React y Supabase.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
