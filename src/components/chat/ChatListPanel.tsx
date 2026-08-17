@@ -53,6 +53,41 @@ export const ChatListPanel: React.FC = () => {
     }
   };
 
+  const renderMessagePreview = (lastMsg?: any) => {
+    if (!lastMsg) return 'Sin mensajes aún';
+    const content = lastMsg.content;
+    if (content && content.startsWith('{') && content.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed && typeof parsed === 'object' && parsed.type) {
+          switch (parsed.type) {
+            case 'image':
+              return '📷 Imagen';
+            case 'document':
+              return `📄 ${parsed.name || 'Documento'}`;
+            case 'audio':
+              return '🎵 Mensaje de voz';
+            case 'location':
+              return '📍 Ubicación';
+            case 'contact':
+              return `👤 Contacto: ${parsed.contactName || 'Detalles'}`;
+            case 'call':
+              if (parsed.callType === 'video') {
+                return parsed.callStatus === 'missed' ? '📹 Videollamada perdida' : '📹 Videollamada';
+              } else {
+                return parsed.callStatus === 'missed' ? '📞 Llamada perdida' : '📞 Llamada de voz';
+              }
+            default:
+              return 'Archivo adjunto';
+          }
+        }
+      } catch {
+        // Fallback to raw
+      }
+    }
+    return content || 'Sin mensajes aún';
+  };
+
   return (
     <aside
       id="chat-list-panel"
@@ -330,7 +365,7 @@ CREATE POLICY "Actualizar estado de mensajes" ON public.messages FOR UPDATE TO a
                               </span>
                             )}
                             <span className={`truncate text-[13px] ${hasUnread ? 'font-medium text-[#111b21]' : 'text-[#667781]'}`}>
-                              {chat.last_message?.content || 'Sin mensajes aún'}
+                              {renderMessagePreview(chat.last_message)}
                             </span>
                           </>
                         )}

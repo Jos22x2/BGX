@@ -146,6 +146,79 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ended_at: completedCall.ended_at,
           duration_seconds: completedCall.duration_seconds,
         });
+
+      // Format duration helper
+      const formatDuration = (sec: number) => {
+        if (sec <= 0) return '';
+        const mins = Math.floor(sec / 60);
+        const remainingSecs = sec % 60;
+        if (mins > 0) {
+          return `${mins} min ${remainingSecs > 0 ? `${remainingSecs} s` : ''}`;
+        }
+        return `${sec} s`;
+      };
+
+      // Resolve chat_id for direct call logs
+      let targetChatId = completedCall.chat_id;
+      if (!targetChatId) {
+        const { data: myParts } = await supabase
+          .from('chat_participants')
+          .select('chat_id')
+          .eq('user_id', completedCall.caller_id);
+
+        if (myParts && myParts.length > 0) {
+          const myChatIds = myParts.map(p => p.chat_id);
+          const { data: targetParts } = await supabase
+            .from('chat_participants')
+            .select('chat_id')
+            .in('chat_id', myChatIds)
+            .eq('user_id', completedCall.callee_id)
+            .limit(1);
+
+          if (targetParts && targetParts.length > 0) {
+            targetChatId = targetParts[0].chat_id;
+          }
+        }
+      }
+
+      // If still no chat exists, create one
+      if (!targetChatId) {
+        targetChatId = crypto.randomUUID();
+        await supabase.from('chats').insert({ id: targetChatId, type: 'direct' });
+        await supabase.from('chat_participants').insert([
+          { chat_id: targetChatId, user_id: completedCall.caller_id },
+          { chat_id: targetChatId, user_id: completedCall.callee_id }
+        ]);
+      }
+
+      const durationStr = formatDuration(duration);
+      const messageContent = JSON.stringify({
+        type: 'call',
+        callType: completedCall.type,
+        callStatus: status,
+        duration: durationStr,
+        callerId: completedCall.caller_id,
+        calleeId: completedCall.callee_id,
+      });
+
+      // Insert message log of call (using call ID as message ID to avoid duplicates)
+      await supabase
+        .from('messages')
+        .insert({
+          id: completedCall.id,
+          chat_id: targetChatId,
+          sender_id: user.id,
+          content: messageContent,
+          status: 'sent',
+          created_at: new Date().toISOString(),
+        });
+
+      // Update chat's updated_at timestamp to bubble it up
+      await supabase
+        .from('chats')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', targetChatId);
+
       loadCallHistory();
     } catch (err) {
       console.error('Error saving call record:', err);

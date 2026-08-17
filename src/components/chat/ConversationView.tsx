@@ -36,7 +36,7 @@ interface ConversationViewProps {
 const COMMON_EMOJIS = ['😀', '😂', '😍', '👍', '🙏', '🔥', '🎉', '❤️', '👏', '🚀', '💯', '✨'];
 
 interface RichAttachment {
-  type: 'image' | 'document' | 'audio' | 'location' | 'contact';
+  type: 'image' | 'document' | 'audio' | 'location' | 'contact' | 'call';
   url?: string;
   name?: string;
   size?: string;
@@ -48,6 +48,10 @@ interface RichAttachment {
   contactName?: string;
   contactEmail?: string;
   contactId?: string;
+  callType?: 'voice' | 'video';
+  callStatus?: 'ringing' | 'accepted' | 'rejected' | 'missed' | 'ended';
+  callerId?: string;
+  calleeId?: string;
 }
 
 const getRichAttachment = (content: string): RichAttachment | null => {
@@ -593,6 +597,52 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
                       >
                         Chatear con {attachment.contactName?.split(' ')[0]}
                       </button>
+                    </div>
+                  )}
+
+                  {attachment.type === 'call' && (
+                    <div className="flex flex-col bg-[#f0f2f5] rounded-xl p-3 border border-[#e9edef] min-w-[220px] sm:min-w-[260px] select-none">
+                      <div className="flex items-center gap-3 mb-2.5">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          attachment.callStatus === 'missed' || attachment.callStatus === 'rejected'
+                            ? 'bg-red-100 text-red-600'
+                            : 'bg-emerald-100 text-emerald-600'
+                        }`}>
+                          {attachment.callType === 'video' ? (
+                            <Video className="w-4 h-4" />
+                          ) : (
+                            <Phone className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-[#111b21]">
+                            {attachment.callType === 'video' ? 'Videollamada' : 'Llamada de voz'}
+                          </p>
+                          <p className={`text-[11px] font-medium ${
+                            attachment.callStatus === 'missed' || attachment.callStatus === 'rejected'
+                              ? 'text-red-500'
+                              : 'text-slate-500'
+                          }`}>
+                            {attachment.callStatus === 'missed' && 'Llamada perdida'}
+                            {attachment.callStatus === 'rejected' && 'Llamada rechazada'}
+                            {attachment.callStatus === 'ended' && `Finalizada ${attachment.duration ? `(${attachment.duration})` : ''}`}
+                          </p>
+                        </div>
+                      </div>
+                      {peer && (
+                        <button
+                          type="button"
+                          onClick={() => startCall(peer, attachment.callType || 'voice', activeChat.id)}
+                          className="w-full py-1.5 bg-[#ffffff] hover:bg-[#00a884] hover:text-white text-[#00a884] text-[11px] font-bold rounded-lg border border-[#e9edef] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {attachment.callType === 'video' ? (
+                            <Video className="w-3.5 h-3.5" />
+                          ) : (
+                            <Phone className="w-3.5 h-3.5" />
+                          )}
+                          <span>Devolver llamada</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
