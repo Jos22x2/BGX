@@ -53,47 +53,27 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
   return (
     <>
       {/* ========================================================================= */}
-      {/* 1. DESKTOP / TABLET VERTICAL NAVIGATION RAIL (md and above) */}
+      {/* 1. DESKTOP / TABLET VERTICAL NAVIGATION RAIL (md and above - WhatsApp Web style) */}
       {/* ========================================================================= */}
       <aside
         id="main-navigation-rail-desktop"
         aria-label="Navegación principal de escritorio"
-        className="hidden md:flex w-16 lg:w-20 bg-white border-r border-slate-200 flex-col items-center py-5 justify-between flex-shrink-0 z-30 select-none shadow-xs h-full"
+        className="hidden md:flex w-16 bg-[#f0f2f5] border-r border-[#e9edef] flex-col items-center py-4 justify-between flex-shrink-0 z-30 select-none h-full"
       >
-        {/* Top Section: Brand & Profile */}
-        <div className="flex flex-col items-center gap-5 w-full">
-          {/* Brand Logo */}
+        {/* Top Section: App Icon & Nav Items */}
+        <div className="flex flex-col items-center gap-4 w-full">
+          {/* Brand Logo / Home */}
           <button
             type="button"
             onClick={() => onSelectView('chats')}
-            className="w-10 h-10 bg-indigo-600 hover:bg-indigo-700 rounded-2xl flex items-center justify-center text-white font-bold text-base shadow-sm active:scale-95 transition cursor-pointer"
+            className="w-10 h-10 bg-[#00a884] hover:bg-[#008f6f] rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-xs active:scale-95 transition-all cursor-pointer"
             title="BGX Mensajería"
           >
             B
           </button>
 
-          {/* User Avatar with status dot */}
-          {user && (
-            <div className="relative group">
-              <button
-                type="button"
-                id="user-profile-button"
-                onClick={() => onSelectView('settings')}
-                className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 transition cursor-pointer active:scale-95"
-                title={`${user.name} (Editar perfil)`}
-              >
-                <img
-                  src={user.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.id}`}
-                  alt={user.name}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-slate-200 hover:border-indigo-600 transition"
-                />
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-              </button>
-            </div>
-          )}
-
-          {/* Navigation Items */}
-          <nav className="flex flex-col items-center gap-2 w-full px-2 mt-1">
+          {/* Nav Items */}
+          <nav className="flex flex-col items-center gap-1.5 w-full px-2 mt-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
@@ -106,19 +86,19 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
                   onClick={() => onSelectView(item.id)}
                   aria-label={item.label}
                   title={item.label}
-                  className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 ${
+                  className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-semibold'
-                      : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                      ? 'bg-[#d9fdd3] text-[#00a884] font-bold shadow-2xs'
+                      : 'text-[#54656f] hover:text-[#111b21] hover:bg-[#e9edef]'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-[2px]'}`} />
 
                   {/* Badge */}
                   {item.badge !== undefined && (
                     <span
                       id={`rail-badge-${item.id}`}
-                      className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-in zoom-in-50 duration-150 ring-2 ring-rose-200"
+                      className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-[#25d366] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-2xs"
                     >
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
@@ -129,15 +109,32 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
           </nav>
         </div>
 
-        {/* Bottom Section: Sign Out */}
-        <div className="flex flex-col items-center w-full px-2">
+        {/* Bottom Section: User Profile & Sign Out */}
+        <div className="flex flex-col items-center gap-3 w-full px-2">
+          {user && (
+            <button
+              type="button"
+              id="user-profile-button"
+              onClick={() => onSelectView('settings')}
+              className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-[#00a884] transition cursor-pointer active:scale-95"
+              title={`${user.name} (Editar perfil)`}
+            >
+              <img
+                src={user.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.id}`}
+                alt={user.name}
+                className="w-9 h-9 rounded-full object-cover border border-[#d1d7db]"
+              />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#25d366] border-2 border-white" />
+            </button>
+          )}
+
           <button
             type="button"
             id="rail-logout-btn"
             onClick={() => signOut()}
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition cursor-pointer"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-[#8696a0] hover:text-rose-600 hover:bg-rose-50 active:scale-95 transition cursor-pointer"
           >
             <LogOut className="w-5 h-5" />
           </button>
@@ -145,13 +142,13 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
       </aside>
 
       {/* ========================================================================= */}
-      {/* 2. MOBILE BOTTOM NAVIGATION BAR (< md) */}
+      {/* 2. MOBILE BOTTOM NAVIGATION BAR (< md - WhatsApp Mobile style) */}
       {/* ========================================================================= */}
       {!hideOnMobile && (
         <nav
           id="main-navigation-mobile-bottom"
           aria-label="Navegación móvil inferior"
-          className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 z-30 flex items-center justify-around px-2 py-1.5 safe-pb select-none shadow-lg"
+          className="md:hidden fixed bottom-0 left-0 right-0 bg-[#ffffff] border-t border-[#e9edef] z-30 flex items-center justify-around px-1 py-1.5 safe-pb select-none shadow-[0_-2px_6px_rgba(0,0,0,0.04)]"
         >
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -163,8 +160,8 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
                 type="button"
                 id={`mobile-nav-${item.id}`}
                 onClick={() => onSelectView(item.id)}
-                className={`relative flex flex-col items-center justify-center min-w-[56px] py-1 px-2 rounded-xl transition active:scale-90 cursor-pointer ${
-                  isActive ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'
+                className={`relative flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 rounded-xl transition active:scale-95 cursor-pointer ${
+                  isActive ? 'text-[#00a884]' : 'text-[#54656f] hover:text-[#111b21]'
                 }`}
               >
                 <div className="relative">
@@ -172,7 +169,7 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
                   {item.badge !== undefined && (
                     <span
                       id={`mobile-badge-${item.id}`}
-                      className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center border-2 border-white shadow-xs animate-in zoom-in-50 ring-1 ring-rose-200"
+                      className="absolute -top-1.5 -right-2.5 min-w-[17px] h-[17px] px-1 bg-[#25d366] text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white shadow-2xs"
                     >
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
@@ -185,13 +182,13 @@ export const NavigationRail: React.FC<NavigationRailProps> = ({ activeView, onSe
             );
           })}
 
-          {/* Quick Profile/Logout Icon on mobile */}
+          {/* Quick Logout Icon on mobile */}
           <button
             type="button"
             id="mobile-logout-btn"
             onClick={() => signOut()}
             aria-label="Cerrar sesión"
-            className="flex flex-col items-center justify-center min-w-[56px] py-1 px-2 text-slate-400 hover:text-rose-600 active:scale-90 transition cursor-pointer"
+            className="flex flex-col items-center justify-center min-w-[52px] min-h-[44px] py-1 px-2 text-[#8696a0] hover:text-rose-600 active:scale-95 transition cursor-pointer"
           >
             <LogOut className="w-5 h-5 stroke-2" />
             <span className="text-[10px] mt-0.5 font-medium">Salir</span>

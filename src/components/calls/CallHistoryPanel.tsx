@@ -2,7 +2,7 @@ import React from 'react';
 import { useCall } from '../../context/CallContext';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
-import { Phone, Video, PhoneMissed, PhoneIncoming, PhoneOutgoing, Clock, Plus } from 'lucide-react';
+import { Phone, Video, PhoneMissed, PhoneIncoming, PhoneOutgoing, Clock } from 'lucide-react';
 import { Profile } from '../../types';
 
 export const CallHistoryPanel: React.FC = () => {
@@ -33,22 +33,21 @@ export const CallHistoryPanel: React.FC = () => {
   };
 
   return (
-    <div className="w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex flex-col h-full select-none">
+    <div className="w-full bg-[#ffffff] border-r border-[#e9edef] flex flex-col h-full select-none">
       {/* Header */}
-      <div className="p-4 border-b border-slate-200/80 flex items-center justify-between">
+      <div className="px-4 py-3.5 bg-[#f0f2f5] border-b border-[#e9edef] flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Llamadas</h2>
-          <p className="text-xs text-slate-500">Historial de llamadas WebRTC</p>
+          <h2 className="text-xl font-bold text-[#111b21] tracking-tight">Llamadas</h2>
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 native-scroll p-2 space-y-1 divide-y divide-slate-100 overscroll-contain">
+      <div className="flex-1 native-scroll divide-y divide-[#e9edef]/80 overscroll-contain">
         {callHistory.length === 0 ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400 px-4">
-            <Clock className="w-10 h-10 text-slate-300 mb-2" />
-            <p className="text-sm font-medium text-slate-700">No hay llamadas recientes</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs">
+          <div className="py-20 text-center flex flex-col items-center justify-center text-[#8696a0] px-4">
+            <Clock className="w-10 h-10 text-[#aebac1] mb-2" />
+            <p className="text-sm font-semibold text-[#111b21]">No hay llamadas recientes</p>
+            <p className="text-xs text-[#667781] mt-1 max-w-xs">
               Las llamadas de voz y video que realices o recibas aparecerán aquí.
             </p>
           </div>
@@ -72,50 +71,50 @@ export const CallHistoryPanel: React.FC = () => {
             return (
               <div
                 key={call.id}
-                className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 active:bg-slate-100/80 transition group gap-3"
+                className="px-3.5 py-3 flex items-center justify-between hover:bg-[#f5f6f6] transition group gap-3 cursor-pointer"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex items-center gap-3.5 min-w-0 flex-1">
                   <div className="relative flex-shrink-0">
                     <img
                       src={peer.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${peer.id}`}
                       alt={peer.name}
-                      className="w-11 h-11 rounded-2xl object-cover border border-slate-200 bg-slate-100"
+                      className="w-12 h-12 rounded-full object-cover bg-[#dfe5e7]"
                     />
-                    <span className="absolute -bottom-1 -right-1 p-1 rounded-full bg-white border border-slate-200 text-slate-600 shadow-2xs">
+                    <span className="absolute bottom-0 right-0 p-0.5 rounded-full bg-white border border-[#e9edef] text-[#54656f] shadow-2xs">
                       {call.type === 'video' ? (
-                        <Video className="w-3 h-3 text-indigo-600" />
+                        <Video className="w-3 h-3 text-[#00a884]" />
                       ) : (
-                        <Phone className="w-3 h-3 text-emerald-600" />
+                        <Phone className="w-3 h-3 text-[#00a884]" />
                       )}
                     </span>
                   </div>
 
                   <div className="overflow-hidden min-w-0">
-                    <h4 className={`text-sm font-semibold truncate ${isMissed && !isCaller ? 'text-rose-600' : 'text-slate-900'}`}>
+                    <h4 className={`text-[15px] font-semibold truncate ${isMissed && !isCaller ? 'text-[#ea0038]' : 'text-[#111b21]'}`}>
                       {peer.name}
                     </h4>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                    <div className="flex items-center gap-1.5 text-[13px] text-[#667781]">
                       {isCaller ? (
-                        <PhoneOutgoing className="w-3 h-3 text-indigo-600" />
+                        <PhoneOutgoing className="w-3.5 h-3.5 text-[#00a884]" />
                       ) : isMissed ? (
-                        <PhoneMissed className="w-3 h-3 text-rose-600" />
+                        <PhoneMissed className="w-3.5 h-3.5 text-[#ea0038]" />
                       ) : (
-                        <PhoneIncoming className="w-3 h-3 text-emerald-600" />
+                        <PhoneIncoming className="w-3.5 h-3.5 text-[#00a884]" />
                       )}
                       <span>{formatDate(call.started_at)}</span>
                       {call.duration_seconds ? (
-                        <span className="text-slate-400">• {formatDuration(call.duration_seconds)}</span>
+                        <span className="text-[#8696a0]">• {formatDuration(call.duration_seconds)}</span>
                       ) : null}
                     </div>
                   </div>
                 </div>
 
                 {/* Callback actions */}
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0 text-[#54656f]">
                   <button
                     type="button"
                     onClick={() => handleCallBack(peer, 'voice')}
-                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-emerald-600 active:scale-95 text-slate-600 hover:text-white transition cursor-pointer"
+                    className="p-2 rounded-full hover:bg-[#e9edef] hover:text-[#00a884] transition cursor-pointer"
                     title="Llamada de voz"
                   >
                     <Phone className="w-4 h-4" />
@@ -123,7 +122,7 @@ export const CallHistoryPanel: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCallBack(peer, 'video')}
-                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-600 active:scale-95 text-slate-600 hover:text-white transition cursor-pointer"
+                    className="p-2 rounded-full hover:bg-[#e9edef] hover:text-[#00a884] transition cursor-pointer"
                     title="Videollamada"
                   >
                     <Video className="w-4 h-4" />
@@ -137,3 +136,4 @@ export const CallHistoryPanel: React.FC = () => {
     </div>
   );
 };
+

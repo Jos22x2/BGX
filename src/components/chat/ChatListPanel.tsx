@@ -55,29 +55,28 @@ export const ChatListPanel: React.FC = () => {
     <aside
       id="chat-list-panel"
       aria-label="Lista de chats"
-      className="w-full md:w-80 lg:w-96 bg-white border-r border-slate-200 flex flex-col h-full select-none"
+      className="w-full bg-[#ffffff] border-r border-[#e9edef] flex flex-col h-full select-none"
     >
-      {/* Panel Header */}
-      <div className="p-4 border-b border-slate-200/80 flex items-center justify-between">
+      {/* Panel Header (WhatsApp style) */}
+      <div className="px-4 py-3.5 bg-[#f0f2f5] border-b border-[#e9edef] flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Chats</h2>
-          <p className="text-xs text-slate-500">Mensajes instantáneos</p>
+          <h2 className="text-xl font-bold text-[#111b21] tracking-tight">Chats</h2>
         </div>
         <button
           type="button"
           id="new-chat-btn"
           onClick={() => setIsNewChatModalOpen(true)}
-          className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition cursor-pointer"
-          title="Iniciar nuevo chat"
+          className="w-9 h-9 rounded-full bg-[#00a884] hover:bg-[#008f6f] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all cursor-pointer"
+          title="Nuevo chat"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-5 h-5 stroke-[2.5px]" />
         </button>
       </div>
 
-      {/* Functional Search Bar */}
-      <div className="px-4 pt-3 pb-2">
+      {/* Search Bar & Filter (WhatsApp style) */}
+      <div className="px-3 pt-2.5 pb-2 bg-[#ffffff] border-b border-[#e9edef]/60">
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#54656f] absolute left-3 pointer-events-none" />
           <input
             type="text"
             id="chat-search-input"
@@ -86,15 +85,15 @@ export const ChatListPanel: React.FC = () => {
             onKeyDown={(e) => {
               if (e.key === 'Escape') setSearchQuery('');
             }}
-            placeholder="Buscar mensajes o personas..."
-            className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+            placeholder="Buscar o empezar un nuevo chat"
+            className="w-full pl-9 pr-8 py-1.5 bg-[#f0f2f5] hover:bg-[#e9edef] focus:bg-[#ffffff] border border-transparent focus:border-[#00a884] rounded-lg text-sm text-[#111b21] placeholder-[#54656f] focus:outline-none transition"
           />
           {searchQuery && (
             <button
               type="button"
               id="chat-search-clear-btn"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition cursor-pointer"
+              className="absolute right-2.5 p-1 rounded-full text-[#54656f] hover:text-[#111b21] hover:bg-[#d1d7db]/50 transition cursor-pointer"
               title="Limpiar búsqueda"
             >
               <X className="w-3.5 h-3.5" />
@@ -104,7 +103,7 @@ export const ChatListPanel: React.FC = () => {
 
         {/* Live Search Status Info */}
         {searchQuery.trim() && (
-          <div className="flex items-center justify-between mt-1.5 px-1 text-[11px] text-slate-500">
+          <div className="flex items-center justify-between mt-1.5 px-1 text-[11px] text-[#54656f]">
             <span>
               {displayedChats.length + matchingOtherProfiles.length}{' '}
               {displayedChats.length + matchingOtherProfiles.length === 1 ? 'resultado' : 'resultados'} para &ldquo;{searchQuery}&rdquo;
@@ -112,68 +111,68 @@ export const ChatListPanel: React.FC = () => {
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="text-indigo-600 hover:underline font-medium cursor-pointer"
+              className="text-[#00a884] hover:underline font-semibold cursor-pointer"
             >
               Limpiar
             </button>
           </div>
         )}
-      </div>
 
-      {/* Filter Tabs */}
-      <div className="px-4 py-2 flex items-center gap-1.5 border-b border-slate-200/80">
-        <button
-          type="button"
-          id="chat-tab-all"
-          onClick={() => setFilterTab('all')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-            filterTab === 'all'
-              ? 'bg-indigo-50 text-indigo-700 font-semibold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span>Todos</span>
-          <span className="px-1.5 py-0.2 bg-slate-200/70 text-slate-700 text-[10px] font-bold rounded-full">
-            {filteredChats.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          id="chat-tab-unread"
-          onClick={() => setFilterTab('unread')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-            filterTab === 'unread'
-              ? 'bg-indigo-50 text-indigo-700 font-semibold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span>No leídos</span>
-          {unreadChatsCount > 0 && (
-            <span
-              id="unread-filter-badge"
-              className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-bold rounded-full shadow-2xs animate-in zoom-in-50"
-            >
-              {unreadChatsCount}
+        {/* Filter Pills (WhatsApp filter tags) */}
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            type="button"
+            id="chat-tab-all"
+            onClick={() => setFilterTab('all')}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+              filterTab === 'all'
+                ? 'bg-[#d9fdd3] text-[#008069] font-bold'
+                : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]'
+            }`}
+          >
+            <span>Todos</span>
+            <span className="text-[10px] opacity-80">
+              ({filteredChats.length})
             </span>
-          )}
-        </button>
+          </button>
+
+          <button
+            type="button"
+            id="chat-tab-unread"
+            onClick={() => setFilterTab('unread')}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+              filterTab === 'unread'
+                ? 'bg-[#d9fdd3] text-[#008069] font-bold'
+                : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e9edef]'
+            }`}
+          >
+            <span>No leídos</span>
+            {unreadChatsCount > 0 && (
+              <span
+                id="unread-filter-badge"
+                className="px-1.5 py-0.2 bg-[#25d366] text-white text-[10px] font-bold rounded-full"
+              >
+                {unreadChatsCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Chat List Items & Search Results */}
-      <div className="flex-1 native-scroll divide-y divide-slate-100 p-2 space-y-1 overscroll-contain">
+      <div className="flex-1 native-scroll divide-y divide-[#e9edef]/80 overscroll-contain">
         {displayedChats.length === 0 && matchingOtherProfiles.length === 0 ? (
-          <div className="py-16 px-4 text-center flex flex-col items-center justify-center text-slate-400">
-            <MessageSquareDashed className="w-10 h-10 text-slate-300 mb-2" />
-            <p className="text-sm font-medium text-slate-700">No hay conversaciones</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-xs">
+          <div className="py-16 px-4 text-center flex flex-col items-center justify-center text-[#8696a0]">
+            <MessageSquareDashed className="w-10 h-10 text-[#aebac1] mb-2" />
+            <p className="text-sm font-semibold text-[#111b21]">No hay conversaciones</p>
+            <p className="text-xs text-[#667781] mt-1 max-w-xs">
               {searchQuery ? 'Ningún chat coincide con la búsqueda.' : 'Inicia un nuevo chat con tus contactos.'}
             </p>
             {searchQuery ? (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="mt-3 px-3 py-1.5 text-xs text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition cursor-pointer"
+                className="mt-3 px-3 py-1.5 text-xs text-[#00a884] bg-[#d9fdd3] rounded-full font-medium hover:bg-[#c2f7b8] transition cursor-pointer"
               >
                 Ver todos los chats
               </button>
@@ -181,7 +180,7 @@ export const ChatListPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsNewChatModalOpen(true)}
-                className="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-semibold hover:bg-indigo-100 active:scale-95 transition cursor-pointer"
+                className="mt-4 px-4 py-2 bg-[#00a884] text-white rounded-full text-xs font-semibold hover:bg-[#008f6f] active:scale-95 transition cursor-pointer shadow-xs"
               >
                 + Iniciar conversación
               </button>
@@ -204,24 +203,24 @@ export const ChatListPanel: React.FC = () => {
                   type="button"
                   id={`chat-item-${chat.id}`}
                   onClick={() => setActiveChatId(chat.id)}
-                  className={`w-full text-left p-3 rounded-2xl flex items-center gap-3 transition-all duration-150 cursor-pointer active:scale-[0.99] relative ${
+                  className={`w-full text-left px-3.5 py-3 flex items-center gap-3.5 transition-colors duration-100 cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-50/90 border border-indigo-200/80 shadow-2xs'
+                      ? 'bg-[#f0f2f5]'
                       : hasUnread
-                      ? 'bg-slate-50/80 hover:bg-slate-100/90 border border-indigo-100 font-medium'
-                      : 'hover:bg-slate-50 border border-transparent'
+                      ? 'bg-[#ffffff] hover:bg-[#f5f6f6]'
+                      : 'bg-[#ffffff] hover:bg-[#f5f6f6]'
                   }`}
                 >
-                  {/* Avatar with Online Indicator */}
+                  {/* WhatsApp style Avatar with Online Indicator */}
                   <div className="relative flex-shrink-0">
                     <img
                       src={peer?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${peer?.id || chat.id}`}
                       alt={peer?.name || 'Contacto'}
-                      className="w-12 h-12 rounded-2xl object-cover border border-slate-200 bg-slate-100"
+                      className="w-12 h-12 rounded-full object-cover bg-[#dfe5e7]"
                     />
                     {peer?.is_online && (
                       <span
-                        className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-300"
+                        className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#25d366] border-2 border-white"
                         title="En línea"
                       />
                     )}
@@ -229,11 +228,11 @@ export const ChatListPanel: React.FC = () => {
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-sm truncate ${hasUnread ? 'font-bold text-slate-950' : 'font-semibold text-slate-900'}`}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className={`text-[15px] truncate ${hasUnread ? 'font-bold text-[#111b21]' : 'font-normal text-[#111b21]'}`}>
                         {peer?.name || 'Contacto BGX'}
                       </span>
-                      <span className={`text-[11px] flex-shrink-0 ml-1 ${hasUnread ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+                      <span className={`text-[11px] flex-shrink-0 ml-2 ${hasUnread ? 'text-[#25d366] font-bold' : 'text-[#667781]'}`}>
                         {formatMessageTime(chat.last_message?.created_at || chat.updated_at)}
                       </span>
                     </div>
@@ -241,35 +240,35 @@ export const ChatListPanel: React.FC = () => {
                     <div className="flex items-center justify-between text-xs gap-1.5">
                       <div className="truncate flex items-center gap-1 min-w-0">
                         {isTyping ? (
-                          <span className="text-indigo-600 font-medium flex items-center gap-1 animate-pulse">
-                            <Circle className="w-1.5 h-1.5 fill-indigo-600 text-indigo-600" />
-                            Escribiendo...
+                          <span className="text-[#25d366] font-semibold flex items-center gap-1">
+                            <Circle className="w-1.5 h-1.5 fill-[#25d366] text-[#25d366] animate-pulse" />
+                            escribiendo...
                           </span>
                         ) : (
                           <>
                             {isMine && (
-                              <span className="inline-flex flex-shrink-0">
+                              <span className="inline-flex flex-shrink-0 mr-0.5">
                                 {chat.last_message?.status === 'read' ? (
-                                  <CheckCheck className="w-3.5 h-3.5 text-indigo-600" />
+                                  <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
                                 ) : chat.last_message?.status === 'delivered' ? (
-                                  <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                                  <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />
                                 ) : (
-                                  <Check className="w-3.5 h-3.5 text-slate-400" />
+                                  <Check className="w-3.5 h-3.5 text-[#8696a0]" />
                                 )}
                               </span>
                             )}
-                            <span className={`truncate ${hasUnread ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>
+                            <span className={`truncate text-[13px] ${hasUnread ? 'font-medium text-[#111b21]' : 'text-[#667781]'}`}>
                               {chat.last_message?.content || 'Sin mensajes aún'}
                             </span>
                           </>
                         )}
                       </div>
 
-                      {/* Unread count badge */}
+                      {/* Unread count badge (WhatsApp green pill) */}
                       {hasUnread && (
                         <span
                           id={`chat-unread-badge-${chat.id}`}
-                          className="px-2 py-0.5 min-w-[20px] h-[20px] text-[11px] font-bold bg-indigo-600 text-white rounded-full flex items-center justify-center flex-shrink-0 shadow-xs ring-2 ring-indigo-200 animate-in zoom-in-50"
+                          className="px-1.5 min-w-[20px] h-[20px] text-[11px] font-bold bg-[#25d366] text-white rounded-full flex items-center justify-center flex-shrink-0"
                         >
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
@@ -282,8 +281,8 @@ export const ChatListPanel: React.FC = () => {
 
             {/* Additional Directory Contacts matching search query */}
             {searchQuery.trim() && matchingOtherProfiles.length > 0 && (
-              <div className="pt-3 pb-2">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="pt-2 pb-2 bg-[#f0f2f5]/50">
+                <div className="px-4 py-2 text-[11px] font-bold text-[#54656f] uppercase tracking-wider flex items-center gap-1.5">
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Otros contactos del directorio ({matchingOtherProfiles.length})</span>
                 </div>
@@ -292,23 +291,23 @@ export const ChatListPanel: React.FC = () => {
                     key={profile.id}
                     type="button"
                     onClick={() => handleStartChatWithContact(profile)}
-                    className="w-full text-left p-3 rounded-2xl flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer group"
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-[#e9edef] transition cursor-pointer group"
                   >
                     <img
                       src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`}
                       alt={profile.name}
-                      className="w-10 h-10 rounded-2xl object-cover border border-slate-200 bg-slate-100 flex-shrink-0"
+                      className="w-10 h-10 rounded-full object-cover bg-[#dfe5e7] flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition truncate">
+                        <span className="text-sm font-semibold text-[#111b21] group-hover:text-[#00a884] transition truncate">
                           {profile.name}
                         </span>
-                        <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md font-semibold">
+                        <span className="text-[10px] text-[#008069] bg-[#d9fdd3] px-2 py-0.5 rounded-full font-bold">
                           Iniciar chat
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 truncate">{profile.email}</p>
+                      <p className="text-xs text-[#667781] truncate">{profile.email}</p>
                     </div>
                   </button>
                 ))}

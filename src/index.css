@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Global touch and layout enhancements */
+/* Global touch, cross-browser resets and typography */
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
@@ -15,11 +15,21 @@ html, body, #root {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: #f0f2f5;
+  color: #111b21;
 }
 
-/* Native Touch and Smooth Scrolling */
+/* WhatsApp Chat Wallpaper Pattern */
+.wa-chat-wallpaper {
+  background-color: #efeae2;
+  background-image: 
+    radial-gradient(#d6cfc7 0.75px, transparent 0.75px),
+    radial-gradient(#d6cfc7 0.75px, #efeae2 0.75px);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+}
+
+/* Cross-Browser Scrollbars (Firefox & WebKit / Chromium) */
 .native-scroll {
   overflow-y: auto;
   overflow-x: hidden;
@@ -27,7 +37,7 @@ html, body, #root {
   overscroll-behavior-y: contain;
   scroll-behavior: smooth;
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
 }
 
 .native-scroll::-webkit-scrollbar {
@@ -40,12 +50,12 @@ html, body, #root {
 }
 
 .native-scroll::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
+  background: rgba(100, 116, 139, 0.28);
   border-radius: 9999px;
 }
 
 .native-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.6);
+  background: rgba(100, 116, 139, 0.45);
 }
 
 .native-scroll-x {
@@ -54,11 +64,11 @@ html, body, #root {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
 }
 
 .native-scroll-x::-webkit-scrollbar {
-  height: 4px;
+  height: 5px;
 }
 
 .native-scroll-x::-webkit-scrollbar-track {
@@ -66,15 +76,21 @@ html, body, #root {
 }
 
 .native-scroll-x::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
+  background: rgba(100, 116, 139, 0.28);
   border-radius: 9999px;
 }
 
-/* Safe area insets for mobile devices */
+/* Mobile Safe Areas for iOS Safari / WebKit */
 .safe-pb {
-  padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.5rem);
 }
 
 .safe-pt {
-  padding-top: env(safe-area-inset-top, 0.5rem);
+  padding-top: max(env(safe-area-inset-top, 0px), 0.5rem);
 }
+
+/* WhatsApp Message Bubble Shadow */
+.wa-bubble-shadow {
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+

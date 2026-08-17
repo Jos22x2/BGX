@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS public.chats (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Asegurar columna 'type' si la tabla 'chats' ya existía previamente
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='chats' AND column_name='type') THEN
+    ALTER TABLE public.chats ADD COLUMN type TEXT NOT NULL DEFAULT 'direct';
+  END IF;
+END $$;
+
 -- 4. TABLA: CHAT_PARTICIPANTS (Participantes de cada chat)
 CREATE TABLE IF NOT EXISTS public.chat_participants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

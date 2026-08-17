@@ -236,7 +236,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCallType(type);
     setPeerProfile(targetUser);
 
-    const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const callId = crypto.randomUUID();
     const channelName = `user_calls_${targetUser.id}`;
     signalingChannelRef.current = channelName;
 

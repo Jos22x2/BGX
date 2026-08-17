@@ -38,49 +38,54 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-slate-900">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="bg-[#ffffff] border-t md:border border-[#e9edef] rounded-t-3xl md:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in slide-in-from-bottom md:zoom-in-95 duration-150 text-[#111b21] max-h-[88dvh] flex flex-col safe-pb">
+        {/* Mobile Drag Indicator */}
+        <div className="md:hidden w-full flex items-center justify-center pt-2.5 pb-1">
+          <div className="w-10 h-1 rounded-full bg-[#d1d7db]" />
+        </div>
+
+        {/* Header (WhatsApp style) */}
+        <div className="px-5 py-3.5 bg-[#f0f2f5] border-b border-[#e9edef] flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Nueva Conversación</h3>
-            <p className="text-xs text-slate-500">Selecciona un contacto para iniciar</p>
+            <h3 className="text-base font-bold text-[#111b21]">Nuevo Chat</h3>
+            <p className="text-xs text-[#667781]">Selecciona un contacto del directorio</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+            className="w-8 h-8 rounded-full bg-[#ffffff] hover:bg-[#e9edef] text-[#54656f] hover:text-[#111b21] flex items-center justify-center transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-slate-100">
+        <div className="p-3 border-b border-[#e9edef]">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#54656f] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por nombre o correo..."
               autoFocus
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              className="w-full pl-9 pr-4 py-2 bg-[#f0f2f5] hover:bg-[#e9edef] focus:bg-[#ffffff] border border-transparent focus:border-[#00a884] rounded-lg text-sm text-[#111b21] placeholder-[#54656f] focus:outline-none transition"
             />
           </div>
         </div>
 
         {/* User list */}
-        <div className="max-h-80 overflow-y-auto p-2 divide-y divide-slate-100">
+        <div className="flex-1 max-h-[60vh] native-scroll p-2 divide-y divide-[#e9edef]/80 overscroll-contain">
           {filtered.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs">
+            <div className="py-12 text-center text-[#8696a0] text-xs">
               No se encontraron contactos que coincidan.
             </div>
           ) : (
             filtered.map((profile) => (
               <div
                 key={profile.id}
-                className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition gap-3"
+                className="p-3 rounded-xl flex items-center justify-between hover:bg-[#f5f6f6] transition gap-3"
               >
                 <div
                   className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
@@ -90,15 +95,15 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose }) => {
                     <img
                       src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`}
                       alt={profile.name}
-                      className="w-10 h-10 rounded-2xl object-cover border border-slate-200 bg-slate-100"
+                      className="w-11 h-11 rounded-full object-cover bg-[#dfe5e7]"
                     />
                     {profile.is_online && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#25d366] border-2 border-white" />
                     )}
                   </div>
                   <div className="overflow-hidden min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 truncate">{profile.name}</div>
-                    <div className="text-xs text-slate-500 truncate">{profile.status_message || profile.email}</div>
+                    <div className="text-sm font-semibold text-[#111b21] truncate">{profile.name}</div>
+                    <div className="text-xs text-[#667781] truncate">{profile.status_message || profile.email}</div>
                   </div>
                 </div>
 
@@ -107,7 +112,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose }) => {
                   <button
                     type="button"
                     onClick={() => handleSelectUser(profile)}
-                    className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white transition cursor-pointer"
+                    className="p-2 rounded-full bg-[#d9fdd3] hover:bg-[#c2f7b8] text-[#008069] transition cursor-pointer"
                     title="Enviar mensaje"
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -115,7 +120,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose }) => {
                   <button
                     type="button"
                     onClick={() => handleStartCall(profile, 'voice')}
-                    className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-600 text-slate-600 hover:text-white transition cursor-pointer"
+                    className="p-2 rounded-full bg-[#f0f2f5] hover:bg-[#e9edef] text-[#54656f] hover:text-[#00a884] transition cursor-pointer"
                     title="Llamada de voz"
                   >
                     <Phone className="w-4 h-4" />
@@ -123,7 +128,7 @@ export const NewChatModal: React.FC<NewChatModalProps> = ({ onClose }) => {
                   <button
                     type="button"
                     onClick={() => handleStartCall(profile, 'video')}
-                    className="p-2 rounded-xl bg-slate-100 hover:bg-indigo-600 text-slate-600 hover:text-white transition cursor-pointer"
+                    className="p-2 rounded-full bg-[#f0f2f5] hover:bg-[#e9edef] text-[#54656f] hover:text-[#00a884] transition cursor-pointer"
                     title="Videollamada"
                   >
                     <Video className="w-4 h-4" />

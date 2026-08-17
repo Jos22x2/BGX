@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Chat, Message, Profile } from '../types';
 import { useAuth } from './AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -24,19 +24,20 @@ interface ChatContextType {
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, availableProfiles } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>({});
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const typingTimeoutRef = useRef<Record<string, number>>({});
+  const activeChatIdRef = useRef<string | null>(null);
+  activeChatIdRef.current = activeChatId;
 
   // Load real chats from Supabase
   const loadChats = useCallback(async () => {
     if (!user || !isSupabaseConfigured || !supabase) {
-      setChats([]);
       return;
     }
 
@@ -47,7 +48,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('user_id', user.id);
 
       if (pErr || !participations || participations.length === 0) {
-        setChats([]);
         return;
       }
 
@@ -59,20 +59,49 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .order('updated_at', { ascending: false });
 
       if (cErr || !chatsData || chatsData.length === 0) {
-        setChats([]);
         return;
       }
 
       // Populate participant details and last message for each chat
       const detailedChats: Chat[] = await Promise.all(
         chatsData.map(async (c) => {
-          // Find other participant's profile
-          const { data: otherPart } = await supabase
+          // Find other participant's user_id safely
+          const { data: otherParts } = await supabase
             .from('chat_participants')
-            .select('user_id, profiles(*)')
+            .select('user_id')
             .eq('chat_id', c.id)
             .neq('user_id', user.id)
-            .single();
+            .limit(1);
+
+          const otherUserId = otherParts?.[0]?.user_id;
+          let otherProfile: Profile | undefined = undefined;
+
+          if (otherUserId) {
+            // Check availableProfiles cache from AuthContext first
+            otherProfile = availableProfiles.find(p => p.id === otherUserId);
+
+            if (!otherProfile) {
+              const { data: prof } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', otherUserId)
+                .maybeSingle();
+              if (prof) otherProfile = prof as Profile;
+            }
+
+            if (!otherProfile) {
+              otherProfile = {
+                id: otherUserId,
+                name: 'Contacto BGX',
+                email: '',
+                avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${otherUserId}`,
+                status_message: '¡Hola! Estoy usando BGX.',
+                is_online: false,
+                last_seen: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+              };
+            }
+          }
 
           // Get last message in this chat
           const { data: lastMsg } = await supabase
@@ -81,7 +110,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq('chat_id', c.id)
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
           // Count unread messages from other user
           const { count: unreadCount } = await supabase
@@ -90,8 +119,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq('chat_id', c.id)
             .neq('sender_id', user.id)
             .neq('status', 'read');
-
-          const otherProfile = otherPart?.profiles as unknown as Profile | undefined;
 
           return {
             ...c,
@@ -102,27 +129,37 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
 
-      // Sort chats by most recent message or update
-      detailedChats.sort((a, b) => {
-        const timeA = new Date(a.last_message?.created_at || a.updated_at).getTime();
-        const timeB = new Date(b.last_message?.created_at || b.updated_at).getTime();
-        return timeB - timeA;
-      });
+      // Merge with existing state so optimistic chats are preserved
+      setChats(prev => {
+        const merged = [...detailedChats];
+        // Keep any active optimistic chat not yet returned by Supabase
+        prev.forEach(existing => {
+          if (!merged.some(m => m.id === existing.id)) {
+            merged.push(existing);
+          }
+        });
 
-      setChats(detailedChats);
+        // Sort chats by most recent message or update
+        merged.sort((a, b) => {
+          const timeA = new Date(a.last_message?.created_at || a.updated_at).getTime();
+          const timeB = new Date(b.last_message?.created_at || b.updated_at).getTime();
+          return timeB - timeA;
+        });
+
+        return merged;
+      });
     } catch (err) {
       console.error('Error loading chats:', err);
-      setChats([]);
     }
-  }, [user]);
+  }, [user, availableProfiles]);
 
   useEffect(() => {
     loadChats();
   }, [loadChats]);
 
-  // Set default active chat on desktop if chats exist
+  // Set default active chat on desktop if chats exist and none selected
   useEffect(() => {
-    if (!activeChatId && chats.length > 0 && typeof window !== 'undefined' && window.innerWidth > 768) {
+    if (!activeChatId && chats.length > 0 && typeof window !== 'undefined' && window.innerWidth >= 768) {
       setActiveChatId(chats[0].id);
     }
   }, [chats, activeChatId]);
@@ -149,15 +186,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Load messages when activeChatId changes
   useEffect(() => {
-    if (!activeChatId || !user || !isSupabaseConfigured || !supabase) {
-      setMessages([]);
+    if (!activeChatId || !user) {
+      return;
+    }
+
+    if (!isSupabaseConfigured || !supabase) {
       return;
     }
 
     let isCancelled = false;
 
     const fetchMessages = async () => {
-      setIsLoadingMessages(true);
+      // If we don't have cached messages for this chat, show loader
+      if (!messagesByChat[activeChatId] || messagesByChat[activeChatId].length === 0) {
+        setIsLoadingMessages(true);
+      }
+
       try {
         const { data, error } = await supabase
           .from('messages')
@@ -167,17 +211,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!isCancelled) {
           if (!error && data) {
-            setMessages(data as Message[]);
+            setMessagesByChat(prev => ({
+              ...prev,
+              [activeChatId]: data as Message[],
+            }));
             markMessagesAsRead(activeChatId);
-          } else {
-            setMessages([]);
           }
           setIsLoadingMessages(false);
         }
       } catch (err) {
         if (!isCancelled) {
           console.error('Error fetching messages:', err);
-          setMessages([]);
           setIsLoadingMessages(false);
         }
       }
@@ -202,8 +246,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new as Message;
-          if (newMsg.chat_id === activeChatId) {
-            setMessages(prev => (prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]));
+          setMessagesByChat(prev => {
+            const currentList = prev[newMsg.chat_id] || [];
+            if (currentList.some(m => m.id === newMsg.id)) {
+              return prev;
+            }
+            return {
+              ...prev,
+              [newMsg.chat_id]: [...currentList, newMsg],
+            };
+          });
+
+          if (newMsg.chat_id === activeChatIdRef.current) {
             if (newMsg.sender_id !== user.id) {
               soundEffects.playMessageReceived();
               markMessagesAsRead(newMsg.chat_id);
@@ -235,7 +289,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         { event: 'UPDATE', schema: 'public', table: 'messages' },
         (payload) => {
           const updatedMsg = payload.new as Message;
-          setMessages(prev => prev.map(m => (m.id === updatedMsg.id ? updatedMsg : m)));
+          setMessagesByChat(prev => {
+            const currentList = prev[updatedMsg.chat_id] || [];
+            return {
+              ...prev,
+              [updatedMsg.chat_id]: currentList.map(m => (m.id === updatedMsg.id ? updatedMsg : m)),
+            };
+          });
           loadChats();
         }
       )
@@ -264,15 +324,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(typingChannel);
     };
-  }, [user, activeChatId, loadChats, markMessagesAsRead]);
+  }, [user, loadChats, markMessagesAsRead]);
 
   // Send message
   const sendMessage = async (content: string) => {
-    if (!user || !activeChatId || !content.trim() || !isSupabaseConfigured || !supabase) return;
+    if (!user || !activeChatId || !content.trim()) return;
 
     const messageContent = content.trim();
+    const newMsgId = crypto.randomUUID();
     const newMsg: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: newMsgId,
       chat_id: activeChatId,
       sender_id: user.id,
       content: messageContent,
@@ -283,17 +344,47 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     soundEffects.playMessageSent();
 
     // Optimistic UI update
-    setMessages(prev => [...prev, newMsg]);
+    setMessagesByChat(prev => ({
+      ...prev,
+      [activeChatId]: [...(prev[activeChatId] || []), newMsg],
+    }));
+
+    setChats(prev =>
+      prev.map(c =>
+        c.id === activeChatId
+          ? { ...c, last_message: newMsg, updated_at: newMsg.created_at }
+          : c
+      )
+    );
     sendTyping(false);
 
+    if (!isSupabaseConfigured || !supabase) return;
+
     try {
-      await supabase.from('messages').insert({
+      const { error: msgErr } = await supabase.from('messages').insert({
         id: newMsg.id,
         chat_id: newMsg.chat_id,
         sender_id: newMsg.sender_id,
         content: newMsg.content,
         status: 'sent',
       });
+
+      if (msgErr) {
+        if (msgErr.code === '23503' && (msgErr.message?.includes('chat_id') || msgErr.details?.includes('chats'))) {
+          // Chat row missing in DB, insert chat and retry message
+          await supabase.from('chats').insert({ id: activeChatId });
+          await supabase.from('chat_participants').insert({ chat_id: activeChatId, user_id: user.id });
+          await supabase.from('messages').insert({
+            id: newMsg.id,
+            chat_id: newMsg.chat_id,
+            sender_id: newMsg.sender_id,
+            content: newMsg.content,
+            status: 'sent',
+          });
+        } else {
+          console.error('Error inserting message into Supabase:', msgErr);
+        }
+      }
 
       await supabase
         .from('chats')
@@ -342,34 +433,159 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Start direct chat with a profile
   const startDirectChat = async (targetUser: Profile): Promise<string> => {
-    if (!user || !isSupabaseConfigured || !supabase) return '';
+    if (!user) return '';
 
-    // Check if chat already exists in state
-    const existing = chats.find(c => c.other_participant?.id === targetUser.id);
-    if (existing) {
-      setActiveChatId(existing.id);
-      return existing.id;
+    // 1. Check if chat already exists in state
+    const existingInState = chats.find(c => c.other_participant?.id === targetUser.id);
+    if (existingInState) {
+      setActiveChatId(existingInState.id);
+      return existingInState.id;
     }
 
-    const chatId = `chat_${[user.id, targetUser.id].sort().join('_')}`;
+    // 2. If Supabase is not configured, operate locally
+    if (!isSupabaseConfigured || !supabase) {
+      const localChatId = crypto.randomUUID();
+      const localChat: Chat = {
+        id: localChatId,
+        type: 'direct',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        other_participant: targetUser,
+        unread_count: 0,
+      };
+      setChats(prev => [localChat, ...prev]);
+      setActiveChatId(localChatId);
+      return localChatId;
+    }
 
     try {
-      await supabase.from('chats').upsert({ id: chatId, type: 'direct' });
-      await supabase.from('chat_participants').upsert([
-        { chat_id: chatId, user_id: user.id },
-        { chat_id: chatId, user_id: targetUser.id },
-      ]);
+      // 3. Check if chat already exists in Supabase DB
+      const { data: myParts } = await supabase
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user.id);
 
-      await loadChats();
-      setActiveChatId(chatId);
-      return chatId;
+      if (myParts && myParts.length > 0) {
+        const myChatIds = myParts.map(p => p.chat_id);
+        const { data: targetParts } = await supabase
+          .from('chat_participants')
+          .select('chat_id')
+          .in('chat_id', myChatIds)
+          .eq('user_id', targetUser.id)
+          .limit(1);
+
+        if (targetParts && targetParts.length > 0) {
+          const existingChatId = targetParts[0].chat_id;
+          const foundChat: Chat = {
+            id: existingChatId,
+            type: 'direct',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            other_participant: targetUser,
+            unread_count: 0,
+          };
+          setChats(prev => [foundChat, ...prev.filter(c => c.id !== existingChatId)]);
+          setActiveChatId(existingChatId);
+          loadChats();
+          return existingChatId;
+        }
+      }
+
+      // 4. Create new chat with standard valid UUID
+      const newChatId = crypto.randomUUID();
+      const optimisticChat: Chat = {
+        id: newChatId,
+        type: 'direct',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        other_participant: targetUser,
+        unread_count: 0,
+      };
+
+      // Optimistically show active conversation immediately
+      setChats(prev => [optimisticChat, ...prev.filter(c => c.id !== newChatId)]);
+      setActiveChatId(newChatId);
+
+      // Persist to Supabase
+      let chatCreated = false;
+      const { error: chatErr } = await supabase
+        .from('chats')
+        .insert({ id: newChatId, type: 'direct' });
+
+      if (!chatErr) {
+        chatCreated = true;
+      } else {
+        // If 'type' column does not exist in user's Supabase schema (PGRST204), retry with just id
+        if (chatErr.code === 'PGRST204' || chatErr.message?.toLowerCase().includes('type')) {
+          const { error: retryErr } = await supabase
+            .from('chats')
+            .insert({ id: newChatId });
+          if (!retryErr) {
+            chatCreated = true;
+          } else {
+            console.error('Error inserting chat (retry without type):', retryErr);
+          }
+        } else {
+          console.error('Error inserting chat:', chatErr);
+        }
+      }
+
+      if (chatCreated) {
+        const { error: partErr } = await supabase
+          .from('chat_participants')
+          .insert([
+            { chat_id: newChatId, user_id: user.id },
+            { chat_id: newChatId, user_id: targetUser.id },
+          ]);
+
+        if (partErr) {
+          console.error('Error inserting participants:', partErr);
+        }
+      }
+
+      loadChats();
+      return newChatId;
     } catch (err) {
       console.error('Error starting direct chat:', err);
-      return chatId;
+      const fallbackChatId = crypto.randomUUID();
+      const fallbackChat: Chat = {
+        id: fallbackChatId,
+        type: 'direct',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        other_participant: targetUser,
+        unread_count: 0,
+      };
+      setChats(prev => [fallbackChat, ...prev]);
+      setActiveChatId(fallbackChatId);
+      return fallbackChatId;
     }
   };
 
-  const activeChat = chats.find(c => c.id === activeChatId) || null;
+  // Find active chat or resolve from available profiles
+  const activeChat = useMemo(() => {
+    if (!activeChatId) return null;
+    const found = chats.find(c => c.id === activeChatId);
+    if (found) return found;
+
+    const profileMatch = availableProfiles.find(p => p.id === activeChatId);
+    if (profileMatch) {
+      return {
+        id: activeChatId,
+        type: 'direct' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        other_participant: profileMatch,
+        unread_count: 0,
+      };
+    }
+    return null;
+  }, [chats, activeChatId, availableProfiles]);
+
+  const currentMessages = useMemo(() => {
+    if (!activeChatId) return [];
+    return messagesByChat[activeChatId] || [];
+  }, [activeChatId, messagesByChat]);
 
   // Filtered chats by search query
   const filteredChats = chats.filter(c => {
@@ -386,7 +602,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         chats,
         activeChatId,
         activeChat,
-        messages,
+        messages: currentMessages,
         isLoadingMessages,
         typingUsers,
         setActiveChatId,
@@ -409,3 +625,4 @@ export const useChat = () => {
   if (!context) throw new Error('useChat must be used within a ChatProvider');
   return context;
 };
+
