@@ -174,17 +174,21 @@ export const ChatListPanel: React.FC = () => {
                   : `Error de base de datos: ${dbError}`}
               </p>
               
-              <div className="mt-2 flex flex-col gap-1 bg-white p-2 rounded-lg border border-red-100 font-mono text-[10px] text-slate-800 break-all select-all">
-                <p className="font-semibold text-slate-500 select-none">CÓDIGO CORRECTOR SQL:</p>
-                <span>DROP POLICY IF EXISTS "Ver participantes de mis chats" ON public.chat_participants;</span>
-                <span className="mt-0.5">CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);</span>
+              <div className="mt-2 flex flex-col gap-1 bg-white p-2 rounded-lg border border-red-100 font-mono text-[9px] text-slate-850 select-all whitespace-pre-wrap leading-relaxed">
+                <p className="font-bold text-slate-500 select-none">CÓDIGO CORRECTOR SQL (COPIABLE):</p>
+                {`DO $$ DECLARE pol RECORD; BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_participants' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.chat_participants', pol.policyname);
+  END LOOP;
+END $$;
+CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);`}
               </div>
 
               <div className="mt-2.5 flex items-center gap-2 select-none">
                 <button
                   type="button"
                   onClick={() => {
-                    const sql = 'DROP POLICY IF EXISTS "Ver participantes de mis chats" ON public.chat_participants;\nCREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);';
+                    const sql = `DO $$ DECLARE pol RECORD; BEGIN\n  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_participants' LOOP\n    EXECUTE format('DROP POLICY IF EXISTS %I ON public.chat_participants', pol.policyname);\n  END LOOP;\nEND $$;\nCREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);`;
                     navigator.clipboard.writeText(sql);
                     setCopiedSql(true);
                     setTimeout(() => setCopiedSql(false), 2500);

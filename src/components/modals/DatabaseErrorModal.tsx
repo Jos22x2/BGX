@@ -9,11 +9,22 @@ export const DatabaseErrorModal: React.FC = () => {
 
   if (dbError !== 'recursive_policy') return null;
 
-  const sqlCode = `-- CORRECCIÓN DE RECURSIÓN INFINITA DE RLS EN SUPABASE
--- 1. Elimina la política problemática que está causando el bucle recursivo
-DROP POLICY IF EXISTS "Ver participantes de mis chats" ON public.chat_participants;
+  const sqlCode = `-- CORRECCIÓN DE RECURSIÓN INFINITA DE RLS EN SUPABASE (MÁXIMA COMPATIBILIDAD)
+-- Este bloque dinámico busca y elimina CUALQUIER política previa en la tabla, previniendo duplicados recursivos.
+DO $$ 
+DECLARE 
+  pol RECORD;
+BEGIN
+  FOR pol IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'chat_participants'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.chat_participants', pol.policyname);
+  END LOOP;
+END $$;
 
--- 2. Crea la nueva política simplificada y segura
+-- Crea la nueva política simplificada, segura y libre de recursión
 CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants 
 FOR SELECT TO authenticated USING (true);`;
 
