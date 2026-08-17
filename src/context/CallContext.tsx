@@ -50,6 +50,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signalingChannelRef = useRef<string | null>(null);
   const callStartTimeRef = useRef<number>(0);
 
+  const activeCallRef = useRef<Call | null>(null);
+  const callStateRef = useRef<CallState>('idle');
+
+  // Keep refs in sync with current state values
+  activeCallRef.current = activeCall;
+  callStateRef.current = callState;
+
   // Load call history from Supabase
   const loadCallHistory = useCallback(() => {
     if (!user || !isSupabaseConfigured || !supabase) {
@@ -187,16 +194,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [activeCall, saveCallRecord, cleanupCall]);
 
   // Initialize WebRTC Peer connection
-  const setupWebRTC = useCallback((type: CallType, onOfferCreated?: (offer: RTCSessionDescriptionInit) => void) => {
+  const setupWebRTC = useCallback((type: CallType, callId: string, onOfferCreated?: (offer: RTCSessionDescriptionInit) => void) => {
     const manager = new WebRTCManager({
       onRemoteStream: (stream) => {
         setRemoteStream(stream);
       },
       onIceCandidate: (candidate) => {
-        if (signalingChannelRef.current && activeCall) {
+        if (signalingChannelRef.current) {
           sendSignalingMessage(signalingChannelRef.current, {
             type: 'call:ice-candidate',
-            callId: activeCall.id,
+            callId: callId,
             candidate: candidate.toJSON(),
           });
         }
@@ -227,7 +234,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setErrorMessage(err.message || 'Error al inicializar cámara y micrófono.');
         endCall();
       });
-  }, [activeCall, endCall]);
+  }, [endCall]);
 
   // Start Outgoing Call
   const startCall = async (targetUser: Profile, type: CallType, chatId?: string) => {
@@ -257,7 +264,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     soundEffects.startRinging();
 
     // Setup WebRTC and create SDP offer
-    setupWebRTC(type, (offer) => {
+    setupWebRTC(type, callId, (offer) => {
       // Send call request with SDP offer
       sendSignalingMessage(channelName, {
         type: 'call:request',
@@ -274,6 +281,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Accept Incoming Call
   const acceptIncomingCall = async () => {
     if (!user || !activeCall || !signalingChannelRef.current) return;
+    const currentCallId = activeCall.id;
     soundEffects.stopRinging();
 
     const manager = new WebRTCManager({
@@ -281,10 +289,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRemoteStream(stream);
       },
       onIceCandidate: (candidate) => {
-        if (signalingChannelRef.current && activeCall) {
+        if (signalingChannelRef.current) {
           sendSignalingMessage(signalingChannelRef.current, {
             type: 'call:ice-candidate',
-            callId: activeCall.id,
+            callId: currentCallId,
             candidate: candidate.toJSON(),
           });
         }
@@ -348,9 +356,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user || !isSupabaseConfigured || !supabase) return;
 
     const handleSignal = async (signal: WebRTCSignalingPayload) => {
+      const currentCallState = callStateRef.current;
+      const currentActiveCall = activeCallRef.current;
+
       // 1. Incoming Call Request
       if (signal.type === 'call:request' && signal.calleeId === user.id) {
-        if (callState !== 'idle') {
+        if (currentCallState !== 'idle') {
           // Busy
           sendSignalingMessage(`user_calls_${signal.callerId}`, {
             type: 'call:reject',
@@ -391,7 +402,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2. Call Accepted (by callee)
-      else if (signal.type === 'call:accept' && signal.callId === activeCall?.id) {
+      else if (signal.type === 'call:accept' && signal.callId === currentActiveCall?.id) {
         soundEffects.stopRinging();
         if (signal.sdp && rtcManagerRef.current) {
           await rtcManagerRef.current.handleAnswer(signal.sdp);
@@ -401,7 +412,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 3. Call Rejected
-      else if (signal.type === 'call:reject' && signal.callId === activeCall?.id) {
+      else if (signal.type === 'call:reject' && signal.callId === currentActiveCall?.id) {
         soundEffects.stopRinging();
         setErrorMessage(
           signal.reason === 'busy'
@@ -415,14 +426,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 4. ICE Candidate exchange
-      else if (signal.type === 'call:ice-candidate' && signal.callId === activeCall?.id) {
+      else if (signal.type === 'call:ice-candidate' && signal.callId === currentActiveCall?.id) {
         if (signal.candidate && rtcManagerRef.current) {
           await rtcManagerRef.current.addIceCandidate(signal.candidate);
         }
       }
 
       // 5. Call Ended / Hangup
-      else if (signal.type === 'call:end' && signal.callId === activeCall?.id) {
+      else if (signal.type === 'call:end' && signal.callId === currentActiveCall?.id) {
         soundEffects.playCallEnded();
         cleanupCall();
         setCallState('idle');
@@ -442,7 +453,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, callState, activeCall, cleanupCall]);
+  }, [user, cleanupCall]);
 
   return (
     <CallContext.Provider

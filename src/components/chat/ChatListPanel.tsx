@@ -181,14 +181,25 @@ export const ChatListPanel: React.FC = () => {
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.chat_participants', pol.policyname);
   END LOOP;
 END $$;
-CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);`}
+CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Los usuarios pueden agregarse o invitar a chats" ON public.chat_participants FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Los usuarios pueden actualizar su propio registro de participante" ON public.chat_participants FOR UPDATE TO authenticated USING (user_id = auth.uid());
+
+DO $$ DECLARE pol RECORD; BEGIN
+  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'messages' LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.messages', pol.policyname);
+  END LOOP;
+END $$;
+CREATE POLICY "Ver mensajes de mis chats" ON public.messages FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Enviar mensajes en mis chats" ON public.messages FOR INSERT TO authenticated WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Actualizar estado de mensajes" ON public.messages FOR UPDATE TO authenticated USING (true);`}
               </div>
 
               <div className="mt-2.5 flex items-center gap-2 select-none">
                 <button
                   type="button"
                   onClick={() => {
-                    const sql = `DO $$ DECLARE pol RECORD; BEGIN\n  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_participants' LOOP\n    EXECUTE format('DROP POLICY IF EXISTS %I ON public.chat_participants', pol.policyname);\n  END LOOP;\nEND $$;\nCREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);`;
+                    const sql = `DO $$ DECLARE pol RECORD; BEGIN\n  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'chat_participants' LOOP\n    EXECUTE format('DROP POLICY IF EXISTS %I ON public.chat_participants', pol.policyname);\n  END LOOP;\nEND $$;\nCREATE POLICY "Ver participantes de mis chats" ON public.chat_participants FOR SELECT TO authenticated USING (true);\nCREATE POLICY "Los usuarios pueden agregarse o invitar a chats" ON public.chat_participants FOR INSERT TO authenticated WITH CHECK (true);\nCREATE POLICY "Los usuarios pueden actualizar su propio registro de participante" ON public.chat_participants FOR UPDATE TO authenticated USING (user_id = auth.uid());\n\nDO $$ DECLARE pol RECORD; BEGIN\n  FOR pol IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = 'messages' LOOP\n    EXECUTE format('DROP POLICY IF EXISTS %I ON public.messages', pol.policyname);\n  END LOOP;\nEND $$;\nCREATE POLICY "Ver mensajes de mis chats" ON public.messages FOR SELECT TO authenticated USING (true);\nCREATE POLICY "Enviar mensajes en mis chats" ON public.messages FOR INSERT TO authenticated WITH CHECK (auth.uid() = sender_id);\nCREATE POLICY "Actualizar estado de mensajes" ON public.messages FOR UPDATE TO authenticated USING (true);`;
                     navigator.clipboard.writeText(sql);
                     setCopiedSql(true);
                     setTimeout(() => setCopiedSql(false), 2500);

@@ -7,10 +7,17 @@ export const DatabaseErrorModal: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  if (dbError !== 'recursive_policy') return null;
+  if (!dbError) return null;
 
-  const sqlCode = `-- CORRECCIÓN DE RECURSIÓN INFINITA DE RLS EN SUPABASE (MÁXIMA COMPATIBILIDAD)
--- Este bloque dinámico busca y elimina CUALQUIER política previa en la tabla, previniendo duplicados recursivos.
+  const isRlsViolation = dbError === 'recursive_policy' || 
+                         dbError.includes('violates row-level security') || 
+                         dbError.includes('42501') || 
+                         dbError.includes('policy');
+
+  if (!isRlsViolation) return null;
+
+  const sqlCode = `-- CORRECCIÓN DE RECURSIÓN Y SEGURIDAD RLS EN SUPABASE (MÁXIMA COMPATIBILIDAD)
+-- 1. Elimina dinámicamente cualquier política conflictiva previa en chat_participants
 DO $$ 
 DECLARE 
   pol RECORD;
@@ -24,9 +31,49 @@ BEGIN
   END LOOP;
 END $$;
 
--- Crea la nueva política simplificada, segura y libre de recursión
+-- 2. Crea las nuevas políticas para chat_participants libres de recursión
 CREATE POLICY "Ver participantes de mis chats" ON public.chat_participants 
-FOR SELECT TO authenticated USING (true);`;
+FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Los usuarios pueden agregarse o invitar a chats" 
+ON public.chat_participants FOR INSERT 
+TO authenticated 
+WITH CHECK (true);
+
+CREATE POLICY "Los usuarios pueden actualizar su propio registro de participante" 
+ON public.chat_participants FOR UPDATE 
+TO authenticated 
+USING (user_id = auth.uid());
+
+-- 3. Elimina dinámicamente cualquier política conflictiva previa en la tabla messages (Evita error 42501)
+DO $$ 
+DECLARE 
+  pol RECORD;
+BEGIN
+  FOR pol IN 
+    SELECT policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'messages'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.messages', pol.policyname);
+  END LOOP;
+END $$;
+
+-- 4. Crea las nuevas políticas para la tabla messages
+CREATE POLICY "Ver mensajes de mis chats" 
+ON public.messages FOR SELECT 
+TO authenticated 
+USING (true);
+
+CREATE POLICY "Enviar mensajes en mis chats" 
+ON public.messages FOR INSERT 
+TO authenticated 
+WITH CHECK (auth.uid() = sender_id);
+
+CREATE POLICY "Actualizar estado de mensajes" 
+ON public.messages FOR UPDATE 
+TO authenticated 
+USING (true);`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(sqlCode);
@@ -58,11 +105,11 @@ FOR SELECT TO authenticated USING (true);`;
             <div className="flex items-center gap-2">
               <Database className="w-5 h-5 text-red-600" />
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                Recursión Infinita Detectada
+                Permisos de Base de Datos Bloqueados (RLS)
               </h3>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Las políticas de seguridad (RLS) de tu base de datos Supabase están en bucle.
+              Las políticas de seguridad de Supabase te están impidiendo enviar mensajes o cargar chats.
             </p>
           </div>
         </div>
@@ -70,7 +117,7 @@ FOR SELECT TO authenticated USING (true);`;
         {/* Technical Explanation */}
         <div className="bg-slate-50 rounded-xl p-4 sm:p-5 border border-slate-100 space-y-3.5 text-xs sm:text-sm text-slate-600">
           <p className="leading-relaxed">
-            La tabla <span className="font-semibold text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded">chat_participants</span> tiene una política de selección que intenta consultarse a sí misma de forma cíclica. Esto genera un error interno <span className="font-semibold text-red-600">PostgreSQL (42P17)</span> que bloquea la carga de conversaciones, contactos y mensajes.
+            Las tablas <span className="font-semibold text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded">chat_participants</span> y <span className="font-semibold text-slate-800 bg-slate-200 px-1.5 py-0.5 rounded">messages</span> tienen políticas activas que restringen o entran en conflicto con las inserciones. Esto provoca un código de error de seguridad <span className="font-semibold text-red-600">PostgreSQL (42501 / 42P17)</span> que bloquea el envío de tus mensajes.
           </p>
           
           <div className="space-y-2 pt-1 border-t border-slate-200/60">
@@ -88,7 +135,7 @@ FOR SELECT TO authenticated USING (true);`;
         </div>
 
         {/* Code box */}
-        <div className="relative mt-5 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 text-slate-200 font-mono text-[11px] sm:text-xs">
+        <div className="relative mt-5 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 text-slate-200 font-mono text-[10px] sm:text-[11px]">
           <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950 border-b border-slate-800 text-slate-400 select-none">
             <span className="font-semibold text-[10px] tracking-wider uppercase">Query SQL de Corrección</span>
             <button
@@ -109,7 +156,7 @@ FOR SELECT TO authenticated USING (true);`;
               )}
             </button>
           </div>
-          <pre className="p-4 overflow-x-auto select-all leading-relaxed whitespace-pre font-medium text-indigo-200 native-scroll">
+          <pre className="p-4 max-h-[160px] overflow-y-auto overflow-x-auto select-all leading-relaxed whitespace-pre font-medium text-indigo-200 native-scroll">
             {sqlCode}
           </pre>
         </div>
