@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Call, CallType, Profile, WebRTCSignalingPayload } from '../types';
 import { useAuth } from './AuthContext';
-import { supabase, isSupabaseConfigured, LocalDataStore, sendSignalingMessage } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, sendSignalingMessage } from '../lib/supabase';
 import { WebRTCManager } from '../lib/webrtc';
 import { soundEffects } from '../lib/audio';
 
@@ -50,32 +50,30 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signalingChannelRef = useRef<string | null>(null);
   const callStartTimeRef = useRef<number>(0);
 
-  // Load call history
+  // Load call history from Supabase
   const loadCallHistory = useCallback(() => {
-    if (!user) return;
-    if (isSupabaseConfigured && supabase) {
-      const fetchHistory = async () => {
-        try {
-          const { data } = await supabase
-            .from('calls')
-            .select('*, caller:caller_id(*), callee:callee_id(*)')
-            .or(`caller_id.eq.${user.id},callee_id.eq.${user.id}`)
-            .order('started_at', { ascending: false });
-          if (data) {
-            setCallHistory(data as Call[]);
-            return;
-          }
-        } catch {
-          // fallback
-        }
-      };
-      fetchHistory();
+    if (!user || !isSupabaseConfigured || !supabase) {
+      setCallHistory([]);
       return;
     }
-    const calls = LocalDataStore.getCalls().filter(
-      c => c.caller_id === user.id || c.callee_id === user.id
-    );
-    setCallHistory(calls);
+
+    const fetchHistory = async () => {
+      try {
+        const { data } = await supabase
+          .from('calls')
+          .select('*, caller:caller_id(*), callee:callee_id(*)')
+          .or(`caller_id.eq.${user.id},callee_id.eq.${user.id}`)
+          .order('started_at', { ascending: false });
+
+        if (data) {
+          setCallHistory(data as Call[]);
+        }
+      } catch (err) {
+        console.error('Error fetching call history:', err);
+      }
+    };
+
+    fetchHistory();
   }, [user]);
 
   useEffect(() => {
@@ -116,9 +114,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signalingChannelRef.current = null;
   }, []);
 
-  // Save Call Record
-  const saveCallRecord = useCallback((status: Call['status'], duration: number) => {
-    if (!user || !activeCall) return;
+  // Save Call Record to Supabase
+  const saveCallRecord = useCallback(async (status: Call['status'], duration: number) => {
+    if (!user || !activeCall || !isSupabaseConfigured || !supabase) return;
 
     const completedCall: Call = {
       ...activeCall,
@@ -127,11 +125,23 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       duration_seconds: duration,
     };
 
-    if (isSupabaseConfigured && supabase) {
-      supabase.from('calls').upsert(completedCall).then(() => loadCallHistory());
-    } else {
-      LocalDataStore.saveCall(completedCall);
+    try {
+      await supabase
+        .from('calls')
+        .upsert({
+          id: completedCall.id,
+          chat_id: completedCall.chat_id || null,
+          caller_id: completedCall.caller_id,
+          callee_id: completedCall.callee_id,
+          type: completedCall.type,
+          status: completedCall.status,
+          started_at: completedCall.started_at,
+          ended_at: completedCall.ended_at,
+          duration_seconds: completedCall.duration_seconds,
+        });
       loadCallHistory();
+    } catch (err) {
+      console.error('Error saving call record:', err);
     }
   }, [user, activeCall, loadCallHistory]);
 
@@ -227,7 +237,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPeerProfile(targetUser);
 
     const callId = `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const channelName = `call_channel_${[user.id, targetUser.id].sort().join('_')}`;
+    const channelName = `user_calls_${targetUser.id}`;
     signalingChannelRef.current = channelName;
 
     const newCall: Call = {
@@ -294,7 +304,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLocalStream(stream);
       manager.initPeerConnection();
 
-      // Retrieve stored offer or wait for signal
+      // Retrieve stored offer
       const offer = (window as unknown as { __bgx_pending_offer?: RTCSessionDescriptionInit }).__bgx_pending_offer;
       if (offer) {
         const answer = await manager.handleOfferAndCreateAnswer(offer);
@@ -333,16 +343,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearError = () => setErrorMessage(null);
 
-  // Realtime signaling listener (Supabase Realtime Channel or BroadcastChannel)
+  // Realtime signaling listener (Supabase Realtime Channel)
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isSupabaseConfigured || !supabase) return;
 
     const handleSignal = async (signal: WebRTCSignalingPayload) => {
       // 1. Incoming Call Request
       if (signal.type === 'call:request' && signal.calleeId === user.id) {
         if (callState !== 'idle') {
           // Busy
-          sendSignalingMessage(`call_channel_${[signal.callerId, user.id].sort().join('_')}`, {
+          sendSignalingMessage(`user_calls_${signal.callerId}`, {
             type: 'call:reject',
             callId: signal.callId,
             reason: 'busy',
@@ -371,7 +381,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         (window as unknown as { __bgx_pending_offer?: RTCSessionDescriptionInit }).__bgx_pending_offer = signal.sdp;
-        signalingChannelRef.current = `call_channel_${[signal.callerId, user.id].sort().join('_')}`;
+        signalingChannelRef.current = `user_calls_${signal.callerId}`;
 
         setActiveCall(incomingCall);
         setCallType(signal.callType || 'video');
@@ -421,29 +431,16 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // 1. Supabase Channel Realtime broadcast
-    if (isSupabaseConfigured && supabase) {
-      const channel = supabase
-        .channel(`user_calls_${user.id}`)
-        .on('broadcast', { event: 'webrtc-signal' }, (event) => {
-          handleSignal(event.payload as WebRTCSignalingPayload);
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-
-    // 2. BroadcastChannel fallback
-    const unsubscribe = LocalDataStore.subscribe((type, payload) => {
-      if (type === 'webrtc-signal') {
-        handleSignal(payload as WebRTCSignalingPayload);
-      }
-    });
+    // Supabase Channel Realtime broadcast on user's own channel
+    const channel = supabase
+      .channel(`user_calls_${user.id}`)
+      .on('broadcast', { event: 'webrtc-signal' }, (event) => {
+        handleSignal(event.payload as WebRTCSignalingPayload);
+      })
+      .subscribe();
 
     return () => {
-      unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [user, callState, activeCall, cleanupCall]);
 

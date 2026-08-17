@@ -57,7 +57,7 @@ export const ContactsPanel: React.FC<{ onOpenChat?: () => void }> = ({ onOpenCha
       </div>
 
       {/* Contact List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 divide-y divide-slate-100">
+      <div className="flex-1 native-scroll p-2 space-y-1 divide-y divide-slate-100 overscroll-contain">
         {filtered.length === 0 ? (
           <div className="py-16 text-center text-slate-400 text-xs flex flex-col items-center">
             <Users className="w-8 h-8 text-slate-300 mb-2" />
@@ -67,10 +67,10 @@ export const ContactsPanel: React.FC<{ onOpenChat?: () => void }> = ({ onOpenCha
           filtered.map((profile) => (
             <div
               key={profile.id}
-              className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition group gap-3"
+              className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 active:bg-slate-100/80 transition group gap-3 cursor-pointer"
             >
               <div
-                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                className="flex items-center gap-3 min-w-0 flex-1"
                 onClick={() => handleStartChat(profile)}
               >
                 <div className="relative flex-shrink-0">
@@ -99,7 +99,7 @@ export const ContactsPanel: React.FC<{ onOpenChat?: () => void }> = ({ onOpenCha
                 <button
                   type="button"
                   onClick={() => handleStartChat(profile)}
-                  className="p-2 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white transition cursor-pointer"
+                  className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-600 active:scale-95 text-indigo-600 hover:text-white transition cursor-pointer"
                   title="Enviar mensaje"
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -107,7 +107,7 @@ export const ContactsPanel: React.FC<{ onOpenChat?: () => void }> = ({ onOpenCha
                 <button
                   type="button"
                   onClick={() => handleStartCall(profile, 'voice')}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-600 text-slate-600 hover:text-white transition cursor-pointer"
+                  className="p-2.5 rounded-xl bg-slate-100 hover:bg-emerald-600 active:scale-95 text-slate-600 hover:text-white transition cursor-pointer"
                   title="Llamada de voz"
                 >
                   <Phone className="w-4 h-4" />
@@ -115,7 +115,7 @@ export const ContactsPanel: React.FC<{ onOpenChat?: () => void }> = ({ onOpenCha
                 <button
                   type="button"
                   onClick={() => handleStartCall(profile, 'video')}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-indigo-600 text-slate-600 hover:text-white transition cursor-pointer"
+                  className="p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-600 active:scale-95 text-slate-600 hover:text-white transition cursor-pointer"
                   title="Videollamada"
                 >
                   <Video className="w-4 h-4" />

@@ -43,7 +43,7 @@ export const CallHistoryPanel: React.FC = () => {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 divide-y divide-slate-100">
+      <div className="flex-1 native-scroll p-2 space-y-1 divide-y divide-slate-100 overscroll-contain">
         {callHistory.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400 px-4">
             <Clock className="w-10 h-10 text-slate-300 mb-2" />
@@ -72,7 +72,7 @@ export const CallHistoryPanel: React.FC = () => {
             return (
               <div
                 key={call.id}
-                className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 transition group gap-3"
+                className="p-3 rounded-2xl flex items-center justify-between hover:bg-slate-50 active:bg-slate-100/80 transition group gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="relative flex-shrink-0">
@@ -111,11 +111,11 @@ export const CallHistoryPanel: React.FC = () => {
                 </div>
 
                 {/* Callback actions */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => handleCallBack(peer, 'voice')}
-                    className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-600 text-slate-600 hover:text-white transition cursor-pointer"
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-emerald-600 active:scale-95 text-slate-600 hover:text-white transition cursor-pointer"
                     title="Llamada de voz"
                   >
                     <Phone className="w-4 h-4" />
@@ -123,7 +123,7 @@ export const CallHistoryPanel: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCallBack(peer, 'video')}
-                    className="p-2 rounded-xl bg-slate-100 hover:bg-indigo-600 text-slate-600 hover:text-white transition cursor-pointer"
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-600 active:scale-95 text-slate-600 hover:text-white transition cursor-pointer"
                     title="Videollamada"
                   >
                     <Video className="w-4 h-4" />

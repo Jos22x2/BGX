@@ -20,8 +20,8 @@ const MainAppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-900">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center mb-4">
+      <div className="h-[100dvh] w-full bg-slate-50 flex flex-col items-center justify-center text-slate-900">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center mb-4 shadow-sm">
           <span className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
         <p className="text-sm font-semibold text-slate-600">Iniciando BGX...</p>
@@ -33,25 +33,46 @@ const MainAppContent: React.FC = () => {
     return <AuthScreen />;
   }
 
-  return (
-    <div id="app" className="h-screen w-screen bg-slate-50 text-slate-900 flex overflow-hidden font-sans antialiased">
-      {/* Column 1: Main Navigation Rail */}
-      <NavigationRail activeView={activeView} onSelectView={setActiveView} />
+  // When activeChatId exists on mobile (< md), we hide the bottom navigation rail to allow full-screen chat
+  const isChatOpenOnMobile = Boolean(activeChatId && activeView === 'chats');
 
-      {/* Main Container Area */}
-      <div className="flex-1 flex h-full overflow-hidden relative">
-        {/* Full-width views: Schema & Settings */}
+  return (
+    <div
+      id="app"
+      className="h-[100dvh] w-full bg-slate-50 text-slate-900 flex flex-col md:flex-row overflow-hidden font-sans antialiased"
+    >
+      {/* 1. Main Navigation: Desktop rail & Mobile bottom bar */}
+      <NavigationRail
+        activeView={activeView}
+        onSelectView={(v) => {
+          setActiveView(v);
+          if (v !== 'chats') {
+            setActiveChatId(null);
+          }
+        }}
+        hideOnMobile={isChatOpenOnMobile}
+      />
+
+      {/* 2. Main Content View Area */}
+      <main className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
+        {/* Views: Schema & Settings */}
         {activeView === 'schema' ? (
-          <SqlSchemaPanel />
+          <div className="flex-1 h-full pb-14 md:pb-0 overflow-hidden">
+            <SqlSchemaPanel />
+          </div>
         ) : activeView === 'settings' ? (
-          <SettingsPanel />
+          <div className="flex-1 h-full pb-14 md:pb-0 overflow-hidden">
+            <SettingsPanel />
+          </div>
         ) : (
-          /* 2-Column Split: List Panel + Active Conversation View */
+          /* Master-Detail (Chats, Calls, Contacts + Active Conversation) */
           <>
-            {/* Column 2: List Panel (Chats / Calls / Contacts) */}
+            {/* Left/List Panel */}
             <div
               className={`h-full ${
-                activeChatId ? 'hidden md:flex' : 'flex w-full md:w-auto'
+                activeChatId
+                  ? 'hidden md:flex md:w-80 lg:w-96 flex-shrink-0'
+                  : 'flex w-full md:w-80 lg:w-96 flex-shrink-0 pb-14 md:pb-0'
               }`}
             >
               {activeView === 'chats' && <ChatListPanel />}
@@ -61,19 +82,19 @@ const MainAppContent: React.FC = () => {
               )}
             </div>
 
-            {/* Column 3: Active Conversation Panel */}
+            {/* Right/Detail Conversation View */}
             <div
-              className={`flex-1 h-full ${
-                !activeChatId ? 'hidden md:flex' : 'flex'
+              className={`flex-1 h-full overflow-hidden ${
+                !activeChatId ? 'hidden md:flex' : 'flex w-full'
               }`}
             >
               <ConversationView onBack={() => setActiveChatId(null)} />
             </div>
           </>
         )}
-      </div>
+      </main>
 
-      {/* Overlays: Incoming Call Toast & Fullscreen Call Stage */}
+      {/* 3. Overlays: Incoming Call Toast & Fullscreen WebRTC Call Stage */}
       <IncomingCallModal />
       <ActiveCallOverlay />
     </div>
@@ -91,3 +112,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

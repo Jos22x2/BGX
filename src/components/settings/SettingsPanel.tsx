@@ -184,8 +184,8 @@ export const SettingsPanel: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex-1 bg-slate-50 flex flex-col h-full overflow-y-auto p-4 sm:p-8 select-none text-slate-900">
-      <div className="max-w-3xl mx-auto w-full space-y-8">
+    <div className="flex-1 bg-slate-50 flex flex-col h-full native-scroll p-4 sm:p-6 md:p-8 select-none text-slate-900 overscroll-contain safe-pb">
+      <div className="max-w-3xl mx-auto w-full space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="pb-4 border-b border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Ajustes</h2>
@@ -193,7 +193,7 @@ export const SettingsPanel: React.FC = () => {
         </div>
 
         {/* Section 1: User Profile */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-xs">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
               <User className="w-5 h-5" />
@@ -385,7 +385,7 @@ export const SettingsPanel: React.FC = () => {
             <div>
               <h3 className="text-base font-bold text-slate-900">Configuración de Supabase Backend</h3>
               <p className="text-xs text-slate-500">
-                {isConfigured ? 'Conexión activa con Supabase' : 'Modo local/demo activo'}
+                {isConfigured ? 'Conexión activa con Supabase' : 'Variables de Supabase requeridas'}
               </p>
             </div>
           </div>
@@ -420,7 +420,7 @@ export const SettingsPanel: React.FC = () => {
                 className="px-3 py-2 text-rose-600 hover:text-rose-700 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Restablecer Modo Demo
+                Limpiar Credenciales Guardadas
               </button>
 
               <button

@@ -64,34 +64,34 @@ export const ActiveCallOverlay: React.FC = () => {
   return (
     <div
       id="call-overlay"
-      className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-8 animate-in fade-in duration-200 safe-pt safe-pb h-[100dvh] w-full select-none"
     >
       {/* Top Header */}
-      <div className="flex items-center justify-between z-20">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between z-20 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
           <img
             src={peerProfile?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${peerProfile?.id}`}
             alt={peerProfile?.name || 'Contacto'}
-            className="w-12 h-12 rounded-2xl object-cover border-2 border-slate-700 shadow-md"
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl object-cover border-2 border-slate-700 shadow-md flex-shrink-0"
           />
-          <div>
-            <h3 id="call-peer-name" className="text-lg font-bold text-white">
+          <div className="min-w-0">
+            <h3 id="call-peer-name" className="text-base sm:text-lg font-bold text-white truncate">
               {peerProfile?.name || 'Contacto BGX'}
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'}`} />
-              <span>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'}`} />
+              <span className="truncate">
                 {isOutgoingRinging ? 'Llamando...' : isConnected ? 'Llamada activa' : 'Conectando señal...'}
               </span>
               {isConnected && (
-                <span className="text-slate-500 font-mono">| Calidad HD WebRTC</span>
+                <span className="text-slate-500 font-mono hidden sm:inline">| HD WebRTC</span>
               )}
             </div>
           </div>
         </div>
 
         {/* Timer Pill */}
-        <div className="px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-white font-mono text-sm font-semibold tracking-wider flex items-center gap-2 shadow-lg">
+        <div className="px-3 sm:px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-white font-mono text-xs sm:text-sm font-semibold tracking-wider flex items-center gap-1.5 sm:gap-2 shadow-lg flex-shrink-0">
           <Activity className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
           <span id="call-timer">{formatTimer(durationSeconds)}</span>
         </div>

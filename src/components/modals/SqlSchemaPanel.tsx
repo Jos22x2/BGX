@@ -139,7 +139,7 @@ export const SqlSchemaPanel: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 bg-slate-50 flex flex-col h-full overflow-y-auto p-4 sm:p-8 select-none text-slate-900">
+    <div className="flex-1 bg-slate-50 flex flex-col h-full native-scroll p-4 sm:p-6 md:p-8 select-none text-slate-900 overscroll-contain safe-pb">
       <div className="max-w-4xl mx-auto w-full space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
@@ -156,10 +156,10 @@ export const SqlSchemaPanel: React.FC = () => {
           <button
             type="button"
             onClick={handleCopy}
-            className={`px-4 py-2.5 rounded-xl font-semibold text-xs flex items-center gap-2 transition shadow-xs cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer active:scale-95 ${
               copied
                 ? 'bg-emerald-600 text-white shadow-emerald-600/30'
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/30 active:scale-95'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/30'
             }`}
           >
             {copied ? (
@@ -211,7 +211,7 @@ export const SqlSchemaPanel: React.FC = () => {
 
         {/* Code Snippet Container */}
         <div className="rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden shadow-xl">
-          <div className="px-5 py-3 bg-slate-800/90 border-b border-slate-700/60 flex items-center justify-between">
+          <div className="px-4 sm:px-5 py-3 bg-slate-800/90 border-b border-slate-700/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-rose-500/80" />
               <span className="w-3 h-3 rounded-full bg-amber-500/80" />
@@ -221,14 +221,14 @@ export const SqlSchemaPanel: React.FC = () => {
             <button
               type="button"
               onClick={handleCopy}
-              className="text-xs text-slate-300 hover:text-white flex items-center gap-1.5 transition cursor-pointer"
+              className="text-xs text-slate-300 hover:text-white active:scale-95 flex items-center gap-1.5 transition cursor-pointer"
             >
               <Copy className="w-3.5 h-3.5" />
               <span>{copied ? 'Copiado' : 'Copiar'}</span>
             </button>
           </div>
 
-          <pre className="p-5 font-mono text-xs text-slate-200 overflow-x-auto leading-relaxed max-h-[500px]">
+          <pre className="p-4 sm:p-5 font-mono text-xs text-slate-200 native-scroll native-scroll-x leading-relaxed max-h-[500px]">
             <code>{SQL_CODE}</code>
           </pre>
         </div>

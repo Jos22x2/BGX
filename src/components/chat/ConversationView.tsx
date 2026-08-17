@@ -273,7 +273,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
       </header>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-1">
+      <div className="flex-1 native-scroll p-3 sm:p-6 space-y-1 overscroll-contain">
         {isLoadingMessages ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -310,18 +310,20 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
 
       {/* Emoji Bar Popover */}
       {showEmojiPicker && (
-        <div className="px-4 py-2 bg-white border-t border-slate-200 flex items-center gap-2 overflow-x-auto z-10 shadow-sm">
-          <span className="text-xs text-slate-500 mr-1 font-medium">Reacciones rápidas:</span>
-          {COMMON_EMOJIS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => handleInsertEmoji(emoji)}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-lg transition cursor-pointer hover:scale-125"
-            >
-              {emoji}
-            </button>
-          ))}
+        <div className="px-3 sm:px-4 py-2 bg-white border-t border-slate-200 flex items-center gap-2 native-scroll-x z-10 shadow-sm">
+          <span className="text-xs text-slate-500 mr-1 font-medium flex-shrink-0">Reacciones:</span>
+          <div className="flex items-center gap-1.5 flex-nowrap">
+            {COMMON_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleInsertEmoji(emoji)}
+                className="p-1.5 hover:bg-slate-100 active:scale-125 rounded-lg text-lg transition cursor-pointer flex-shrink-0"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -329,14 +331,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
       <form
         onSubmit={handleSend}
         id="message-form"
-        className="p-3 sm:p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-end gap-2 z-20"
+        className="p-2 sm:p-4 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-end gap-1.5 sm:gap-2 z-20 safe-pb"
       >
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
           <button
             type="button"
             id="attach-btn"
             onClick={() => handleInsertEmoji('📷 ')}
-            className="p-2.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 active:scale-95 transition cursor-pointer"
             title="Adjuntar archivo o imagen"
           >
             <Paperclip className="w-5 h-5" />
@@ -344,7 +346,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
           <button
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`p-2.5 rounded-xl transition cursor-pointer ${
+            className={`p-2 sm:p-2.5 rounded-xl active:scale-95 transition cursor-pointer ${
               showEmojiPicker ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
             }`}
             title="Insertar emoji"
@@ -354,15 +356,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
         </div>
 
         {/* Text Input */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0">
           <textarea
             id="message-input"
             rows={1}
             value={inputText}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Escribe un mensaje... (Enter para enviar)"
-            className="w-full max-h-32 min-h-[42px] px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+            placeholder="Escribe un mensaje..."
+            className="w-full max-h-32 min-h-[42px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
           />
         </div>
 
@@ -371,7 +373,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
           type="submit"
           id="send-btn"
           disabled={!inputText.trim()}
-          className="p-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white disabled:opacity-40 disabled:hover:bg-indigo-600 transition shadow-xs cursor-pointer flex-shrink-0"
+          className="p-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white disabled:opacity-40 disabled:hover:bg-indigo-600 transition shadow-xs cursor-pointer flex-shrink-0 flex items-center justify-center min-w-[42px] min-h-[42px]"
           title="Enviar mensaje"
         >
           <Send className="w-5 h-5" />
@@ -380,13 +382,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
 
       {/* Info Drawer Modal */}
       {showInfoDrawer && peer && (
-        <div className="absolute top-0 right-0 bottom-0 w-80 bg-white border-l border-slate-200 p-6 z-30 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-200">
+        <div className="absolute inset-0 sm:inset-y-0 sm:left-auto sm:right-0 sm:w-80 bg-white border-l border-slate-200 p-6 z-30 shadow-2xl native-scroll animate-in slide-in-from-right duration-200">
           <div className="flex items-center justify-between mb-6">
             <h4 className="font-bold text-slate-900">Detalles del Contacto</h4>
             <button
               type="button"
               onClick={() => setShowInfoDrawer(false)}
-              className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95 transition cursor-pointer"
             >
               ✕
             </button>
@@ -419,7 +421,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
                   setShowInfoDrawer(false);
                   startCall(peer, 'voice', activeChat.id);
                 }}
-                className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 flex flex-col items-center gap-1 text-xs font-medium transition cursor-pointer"
+                className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 flex flex-col items-center gap-1 text-xs font-medium transition cursor-pointer"
               >
                 <Phone className="w-5 h-5 text-emerald-600" />
                 Llamar
@@ -430,7 +432,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ onBack }) =>
                   setShowInfoDrawer(false);
                   startCall(peer, 'video', activeChat.id);
                 }}
-                className="p-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex flex-col items-center gap-1 text-xs font-medium border border-indigo-200 transition cursor-pointer"
+                className="p-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-700 flex flex-col items-center gap-1 text-xs font-medium border border-indigo-200 transition cursor-pointer"
               >
                 <Video className="w-5 h-5 text-indigo-600" />
                 Videollamada

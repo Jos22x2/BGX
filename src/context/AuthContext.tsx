@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState, useTransition } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Profile } from '../types';
-import { supabase, isSupabaseConfigured, LocalDataStore, DEMO_PROFILES } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthContextType {
   user: Profile | null;
@@ -8,227 +8,272 @@ interface AuthContextType {
   isConfigured: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
-  signInAsDemoUser: (profileId: string) => void;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
   availableProfiles: Profile[];
-  reloadProfiles: () => void;
+  reloadProfiles: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const CURRENT_USER_KEY = 'bgx_current_user_id';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
-  const [, startTransition] = useTransition();
 
-  // Load profiles from Supabase or LocalDataStore
-  const loadProfiles = async () => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.from('profiles').select('*').order('name');
-        if (!error && data && data.length > 0) {
-          setAvailableProfiles(data as Profile[]);
-          return;
-        }
-      } catch {
-        // fallback
-      }
+  // Load all registered user profiles from Supabase
+  const loadProfiles = useCallback(async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      setAvailableProfiles([]);
+      return;
     }
-    setAvailableProfiles(LocalDataStore.getProfiles());
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name', { ascending: true });
+      if (!error && data) {
+        setAvailableProfiles(data as Profile[]);
+      } else {
+        setAvailableProfiles([]);
+      }
+    } catch {
+      setAvailableProfiles([]);
+    }
+  }, []);
+
+  // Fetch or create profile for authenticated user
+  const fetchOrCreateProfile = async (authUserId: string, email: string, metadata?: Record<string, unknown>): Promise<Profile | null> => {
+    if (!supabase) return null;
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUserId)
+        .single();
+
+      if (profile && !error) {
+        // Update presence to online
+        await supabase
+          .from('profiles')
+          .update({ is_online: true, last_seen: new Date().toISOString() })
+          .eq('id', authUserId);
+        return { ...profile, is_online: true } as Profile;
+      }
+
+      // Create new profile record if it doesn't exist
+      const displayName = (metadata?.name as string) || email.split('@')[0] || 'Usuario BGX';
+      const avatarUrl = (metadata?.avatar_url as string) || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(authUserId)}`;
+      const newProf: Profile = {
+        id: authUserId,
+        email,
+        name: displayName,
+        avatar_url: avatarUrl,
+        status_message: '¡Hola! Estoy usando BGX.',
+        is_online: true,
+        last_seen: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      };
+
+      await supabase.from('profiles').upsert(newProf);
+      return newProf;
+    } catch {
+      return null;
+    }
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
       setIsLoading(true);
-      await loadProfiles();
 
-      if (isSupabaseConfigured && supabase) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
-            if (profile) {
-              setUser(profile as Profile);
-            } else {
-              // Create profile if missing
-              const newProf: Profile = {
-                id: session.user.id,
-                email: session.user.email || '',
-                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuario BGX',
-                avatar_url: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${session.user.id}`,
-                status_message: '¡Hola! Estoy usando BGX.',
-                is_online: true,
-                last_seen: new Date().toISOString(),
-                created_at: new Date().toISOString(),
-              };
-              await supabase.from('profiles').upsert(newProf);
-              setUser(newProf);
-            }
-          }
-        } catch {
-          // fallback to demo auth
+      if (!isSupabaseConfigured || !supabase) {
+        if (isMounted) {
+          setUser(null);
+          setAvailableProfiles([]);
+          setIsLoading(false);
         }
-      } else {
-        // Fallback demo user
-        const storedUserId = localStorage.getItem(CURRENT_USER_KEY);
-        const profiles = LocalDataStore.getProfiles();
-        const found = profiles.find(p => p.id === storedUserId) || profiles[0] || null;
-        if (found) {
-          setUser({ ...found, is_online: true });
-        }
+        return;
       }
 
-      setIsLoading(false);
+      try {
+        await loadProfiles();
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && isMounted) {
+          const profile = await fetchOrCreateProfile(
+            session.user.id,
+            session.user.email || '',
+            session.user.user_metadata
+          );
+          if (profile && isMounted) {
+            setUser(profile);
+          }
+        }
+      } catch (err) {
+        console.error('Error initializing auth session:', err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     };
 
     initAuth();
 
-    // Listen to profile updates across tabs
-    const unsubscribe = LocalDataStore.subscribe((type) => {
-      if (type === 'profile_updated') {
-        loadProfiles();
+    if (!isSupabaseConfigured || !supabase) return;
+
+    // Listen for auth state changes
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const profile = await fetchOrCreateProfile(
+            session.user.id,
+            session.user.email || '',
+            session.user.user_metadata
+          );
+          if (profile && isMounted) {
+            setUser(profile);
+            loadProfiles();
+          }
+        } else if (event === 'SIGNED_OUT') {
+          if (isMounted) {
+            setUser(null);
+          }
+        }
       }
-    });
+    );
+
+    // Listen for realtime profile changes
+    const profilesChannel = supabase
+      .channel('public:profiles_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        loadProfiles();
+      })
+      .subscribe();
 
     return () => {
-      unsubscribe();
+      isMounted = false;
+      authSubscription.unsubscribe();
+      supabase.removeChannel(profilesChannel);
     };
-  }, []);
+  }, [loadProfiles]);
 
   const signInWithEmail = async (email: string, password: string): Promise<{ error: Error | null }> => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) return { error };
-        if (data.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-          if (profile) setUser(profile as Profile);
-        }
-        return { error: null };
-      } catch (err) {
-        return { error: err as Error };
-      }
-    } else {
-      // Local demo sign in
-      const profiles = LocalDataStore.getProfiles();
-      const existing = profiles.find(p => p.email.toLowerCase() === email.toLowerCase());
-      if (existing) {
-        localStorage.setItem(CURRENT_USER_KEY, existing.id);
-        setUser({ ...existing, is_online: true });
-        return { error: null };
-      }
-      // Create user
-      const newProf: Profile = {
-        id: `usr_${Date.now()}`,
-        name: email.split('@')[0],
-        email,
-        avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`,
-        status_message: '¡Hola! Estoy usando BGX.',
-        is_online: true,
-        last_seen: new Date().toISOString(),
-        created_at: new Date().toISOString(),
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        error: new Error('Supabase no está configurado. Por favor configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.'),
       };
-      LocalDataStore.saveProfile(newProf);
-      localStorage.setItem(CURRENT_USER_KEY, newProf.id);
-      setUser(newProf);
-      setAvailableProfiles(LocalDataStore.getProfiles());
+    }
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      if (data.user) {
+        const profile = await fetchOrCreateProfile(
+          data.user.id,
+          data.user.email || '',
+          data.user.user_metadata
+        );
+        if (profile) {
+          setUser(profile);
+        }
+        await loadProfiles();
+      }
+
       return { error: null };
+    } catch (err) {
+      return { error: err as Error };
     }
   };
 
-  const signUpWithEmail = async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              name,
-              avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`,
-            },
+  const signUpWithEmail = async (
+    email: string,
+    password: string,
+    name: string
+  ): Promise<{ error: Error | null }> => {
+    if (!isSupabaseConfigured || !supabase) {
+      return {
+        error: new Error('Supabase no está configurado. Por favor configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.'),
+      };
+    }
+
+    try {
+      const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name.trim())}`;
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            name: name.trim(),
+            avatar_url: avatarUrl,
           },
-        });
-        if (error) return { error };
-        if (data.user) {
-          const newProfile: Profile = {
-            id: data.user.id,
-            name,
-            email,
-            avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`,
-            status_message: '¡Hola! Estoy usando BGX.',
-            is_online: true,
-            last_seen: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-          };
-          await supabase.from('profiles').upsert(newProfile);
+        },
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      if (data.user) {
+        const newProfile: Profile = {
+          id: data.user.id,
+          name: name.trim(),
+          email: data.user.email || email.trim(),
+          avatar_url: avatarUrl,
+          status_message: '¡Hola! Estoy usando BGX.',
+          is_online: true,
+          last_seen: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+        };
+
+        await supabase.from('profiles').upsert(newProfile);
+
+        if (data.session) {
           setUser(newProfile);
         }
-        return { error: null };
-      } catch (err) {
-        return { error: err as Error };
+        await loadProfiles();
       }
-    } else {
-      // Local signup
-      const newProf: Profile = {
-        id: `usr_${Date.now()}`,
-        name,
-        email,
-        avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`,
-        status_message: '¡Hola! Estoy usando BGX.',
-        is_online: true,
-        last_seen: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-      };
-      LocalDataStore.saveProfile(newProf);
-      localStorage.setItem(CURRENT_USER_KEY, newProf.id);
-      setUser(newProf);
-      setAvailableProfiles(LocalDataStore.getProfiles());
-      return { error: null };
-    }
-  };
 
-  const signInAsDemoUser = (profileId: string) => {
-    const profiles = LocalDataStore.getProfiles();
-    const target = profiles.find(p => p.id === profileId);
-    if (target) {
-      localStorage.setItem(CURRENT_USER_KEY, target.id);
-      startTransition(() => {
-        setUser({ ...target, is_online: true });
-      });
+      return { error: null };
+    } catch (err) {
+      return { error: err as Error };
     }
   };
 
   const signOut = async () => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
+    if (user && isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ is_online: false, last_seen: new Date().toISOString() })
+          .eq('id', user.id);
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('Error during signOut:', err);
+      }
     }
-    localStorage.removeItem(CURRENT_USER_KEY);
     setUser(null);
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return;
-    const updated = { ...user, ...updates };
-    setUser(updated);
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase.from('profiles').update(updates).eq('id', user.id);
-    } else {
-      LocalDataStore.saveProfile(updated);
+    if (!user || !isSupabaseConfigured || !supabase) return;
+    try {
+      const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
+      if (!error) {
+        setUser((prev) => (prev ? { ...prev, ...updates } : null));
+        await loadProfiles();
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
     }
   };
 
@@ -240,7 +285,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isConfigured: isSupabaseConfigured,
         signInWithEmail,
         signUpWithEmail,
-        signInAsDemoUser,
         signOut,
         updateProfile,
         availableProfiles,
@@ -257,3 +301,4 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
+
